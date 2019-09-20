@@ -1,0 +1,8 @@
+---
+Name: advanced_taxonomies_versioning
+After:
+  - modules-framework
+  - modules-cms
+---
+Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
+  extensions: ['SilverStripe\Versioned\Versioned']

@@ -1,0 +1,75 @@
+/* fixes for addExistingAutocomplete */
+.ui-autocomplete.ui-menu.ui-widget.ui-widget-content.ui-corner-all {
+    border: 1px solid #dbe0e9 !important;
+}
+.ui-menu .ui-menu-item, .ui-menu .ui-menu-item a {
+    white-space: nowrap !important;
+}
+
+/* styles for inline tags tooltip (in GridField) */
+.Select--multi .Select-value-label {
+    text-decoration: none
+}
+
+.Select--multi .Select-value-label.with-tooltip {
+    border-bottom: 1px dashed;
+}
+
+.Select--multi .Select-value-label.with-tooltip:hover {
+    position: relative;
+    cursor: help;
+}
+.Select--multi .Select-value-label .at-tooltip {
+    display: none;
+    color: rgb(67, 83, 109);
+}
+.Select--multi .Select-value-label:hover .at-tooltip {
+    border: #c0c0c0 1px dotted;
+    padding: 15px 30px 15px 15px;
+    display: block !important;
+    z-index: 100;
+    left: 0px;
+    margin: 10px;
+    width: 270px;
+    position: absolute;
+    top: 10px;
+    text-decoration: none;
+    border: 1px solid #1a1a1a;
+    background-color: #ffffff;
+}
+
+/* fixes for MultiSelectTreeField */
+.treedropdownfield__breadcrumbs:hover {
+     background: #ffcfff !important;
+}
+.treedropdownfield__breadcrumbs-button {
+    color: #0b5aaf !important;
+}
+.Select-option.is-selected {
+    background-color: peachpuff !important;
+}
+.Select-option.is-selected .treedropdownfield__option-button {
+    background: #ffcfff !important;
+    color: darkgreen !important;
+}
+.Select-option.is-selected .treedropdownfield__option-button:hover {
+    background: #ff9fff  !important;
+    color: black !important;
+}
+
+/* style for a link with .at-link-external */
+a.at-link-external {
+    padding-right: 1em;
+    background-image: url(./img/icons/external-icon--blue.svg);
+    background-repeat: no-repeat;
+    background-position: 100%;
+    background-size: .75em .75em;
+}
+
+/* Mobile view fixing for GridField that lists TaxonomyTerm */
+@media (max-width: 767.98px) {
+    .grid-field__table td.col-TagName {
+        display: table-cell !important;
+    }
+}
+

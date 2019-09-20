@@ -1,0 +1,37 @@
+---
+Name: advanced-taxonomies
+---
+SilverStripe\Admin\ModelAdmin:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\TaxonomyModelAdminExtension
+
+---
+Only:
+  moduleexists: 'silverstripe/cms'
+---
+SilverStripe\CMS\Model\SiteTree:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\DataObjectTaxonomiesDataExtension
+SilverStripe\CMS\Controllers\CMSMain:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\LeftAndMainTaxonomyExtension
+    - Chrometoaster\AdvancedTaxonomies\Extensions\CMSMainTaxonomyExtension
+
+---
+Only:
+  moduleexists: 'silverstripe/assets'
+---
+SilverStripe\Assets\File:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\DataObjectTaxonomiesDataExtension
+
+---
+Only:
+  moduleexists: 'silverstripe/asset-admin'
+---
+SilverStripe\AssetAdmin\Forms\FileFormFactory:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\FileFormFactoryTaxonomyExtension
+SilverStripe\AssetAdmin\Controller\AssetAdmin:
+  extensions:
+    - Chrometoaster\AdvancedTaxonomies\Extensions\LeftAndMainTaxonomyExtension

@@ -1,0 +1,128 @@
+Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
+  rootTerm1:
+    Name: "Root term 1"
+
+  rootTerm2:
+    Name: "Root term 2"
+
+  rootTerm3:
+    Name: "Root term 3"
+
+  level1Term3p1:
+    Name: "Level 1 term 3.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+
+  level1Term3p2:
+    Name: "Level 1 term 3.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+
+  level2Term3p1p1:
+    Name: "Level 2 term 3.1.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term3p1
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
+                   =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
+
+  level2Term3p1p2:
+    Name: "Level 2 term 3.1.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term3p1
+
+  level2Term3p2p1:
+    Name: "Level 2 term 3.2.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term3p2
+
+  level2Term3p2p2:
+    Name: "Level 2 term 3.2.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term3p2
+
+  rootTerm4:
+    Name: "Root term 4"
+    SingleSelect: true
+    DisplayPreference: false
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
+                   =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+
+  level1Term4p1:
+    Name: "Level 1 term 4.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm4
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
+                   =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
+    RequiredTypesInheritRoot: false
+
+  level1Term4p2:
+    Name: "Level 1 term 4.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm4
+
+  level2Term4p1p1:
+    Name: "Level 2 term 4.1.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
+
+  level2Term4p1p2:
+    Name: "Level 2 term 4.1.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
+
+  level2Term4p2p1:
+    Name: "Level 2 term 4.2.1"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p2
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
+                   =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
+
+  level2Term4p2p2:
+    Name: "Level 2 term 4.2.2"
+    Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p2
+
+  typeX:
+    Name: "Root term X that will require Type Z"
+    # The RequiredTypes defined below won't work as the referred object must be defined before this object's definition
+    # RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeZ
+    # We are going to add the relation above in the UT case where it is needed
+
+  typeY:
+    Name: "Root term Y, requiring Type X"
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeX
+
+  typeZ:
+    Name: "Root term Z, requiring Type Y"
+    RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeY
+
+
+Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject:
+  object1:
+    Title: 'Data object 1'
+  object2:
+    Title: 'Data object 2, for testing required types under a requiring loop'
+  object3:
+    Title: 'Data object 3'
+
+
+Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm:
+  tag1:
+    Sort: 3
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object1
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1
+  tag2:
+    Sort: 1
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object1
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+  tag3:
+    Sort: 2
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object1
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level2Term3p2p2
+  tag4:
+    Sort: 4
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object1
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm4
+
+  tag5:
+    Sort: 0
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object3
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level2Term4p2p2
+
+  tagX:
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object2
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeX
+  tagY:
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object2
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeY
+  tagZ:
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object2
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeZ
