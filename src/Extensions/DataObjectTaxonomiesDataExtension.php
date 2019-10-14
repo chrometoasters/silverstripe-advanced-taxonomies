@@ -272,4 +272,14 @@ HTML;
 
         return implode(' ', $names);
     }
+
+
+    /**
+     * All Tags with DisplayPreference being true, give a owner object
+     *
+     * @return mixed
+     */
+    public function getDisplayableTags() {
+        return $this->owner->Tags()->filter('DisplayPreference', true);
+    }
 }
