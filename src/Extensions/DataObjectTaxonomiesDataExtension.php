@@ -279,7 +279,8 @@ HTML;
      *
      * @return mixed
      */
-    public function getDisplayableTags() {
+    public function getDisplayableTags()
+    {
         return $this->owner->Tags()->filter('DisplayPreference', true);
     }
 }
