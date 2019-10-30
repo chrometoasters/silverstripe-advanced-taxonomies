@@ -47,6 +47,10 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         'Tags',
     ];
 
+    private static $cascade_duplicates = [
+        'Tags'
+    ];
+
     private static $summary_fields = [
         'TagNames' => 'Tags',
     ];
