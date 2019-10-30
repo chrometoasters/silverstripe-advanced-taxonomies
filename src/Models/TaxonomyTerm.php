@@ -617,7 +617,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                     $category
                 ),
             ],
-            'AT TAXONOMYTERM_CREATE' => [
+            'AT_TAXONOMYTERM_CREATE' => [
                 'name' => _t(
                     self::class . '.CreatePermissionLabel',
                     'Create a taxonomy term'
