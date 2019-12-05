@@ -421,14 +421,16 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                 );
 
                 $queryResult = DB::query($sql)->map();
-                $numRecords  = array_key_first($queryResult);
-                $class       = $queryResult[$numRecords];
+                if (count($queryResult)) {
+                    $numRecords  = array_key_first($queryResult);
+                    $class       = $queryResult[$numRecords];
 
-                if ($numRecords > 0) {
-                    return [
-                        'objectType' => $class,
-                        'terms'      => implode('<br />', $terms->column('Name')),
-                    ];
+                    if ($numRecords > 0) {
+                        return [
+                            'objectType' => $class,
+                            'terms'      => implode('<br />', $terms->column('Name')),
+                        ];
+                    }
                 }
             }
         }
