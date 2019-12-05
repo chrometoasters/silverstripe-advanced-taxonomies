@@ -698,6 +698,37 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
+     * Find term by a url-like path, e.g. information-type/newsletter/highlights.
+     *
+     * @param string|array $slug
+     * @param int $parentID
+     * @return self|null
+     */
+    public static function getBySlug($slug, int $parentID = 0)
+    {
+        if (is_string($slug)) {
+            $slug = array_filter(explode('/', $slug), function ($item) { return strlen($item); });
+        }
+        if (!is_array($slug)) {
+            throw new \RuntimeException('$slug must be a string or an array.');
+        }
+
+        $urlSegment = array_shift($slug);
+        $term = self::get()->filter(['ParentID' => $parentID, 'URLSegment' => $urlSegment])->first();
+
+        if ($term && $term->exists()) {
+            if (count($slug) === 0) {
+                return $term;
+            } else {
+                return self::getBySlug($slug, $term->ID); // use of static intentional to allow override
+            }
+        }
+
+        return null;
+    }
+
+
+    /**
      * The function is to provide this taxonomy term presented like a 'tag' which is wrapped by special HTML tags with
      * some special classes
      *
