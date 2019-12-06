@@ -415,20 +415,22 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
             if (ClassInfo::hasTable($tableName)) {
                 $sql = sprintf(
-                    'SELECT count(1) as NumRecords, OwnerObjectClass FROM %s WHERE JointObjectID IN (%s)',
+                    'SELECT count(1) as NumRecords, OwnerObjectClass FROM %s WHERE JointObjectID IN (%s) GROUP BY OwnerObjectClass',
                     $tableName,
                     $termIDs
                 );
 
                 $queryResult = DB::query($sql)->map();
-                $numRecords  = array_key_first($queryResult);
-                $class       = $queryResult[$numRecords];
+                if (count($queryResult)) {
+                    $numRecords  = array_key_first($queryResult);
+                    $class       = $queryResult[$numRecords];
 
-                if ($numRecords > 0) {
-                    return [
-                        'objectType' => $class,
-                        'terms'      => implode('<br />', $terms->column('Name')),
-                    ];
+                    if ($numRecords > 0) {
+                        return [
+                            'objectType' => $class,
+                            'terms'      => implode('<br />', $terms->column('Name')),
+                        ];
+                    }
                 }
             }
         }
