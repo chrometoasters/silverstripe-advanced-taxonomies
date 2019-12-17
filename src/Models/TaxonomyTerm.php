@@ -9,11 +9,14 @@ use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
+use SilverStripe\Forms\GridField\GridFieldConfig_Base;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Forms\GridField\GridFieldDeleteAction;
 use SilverStripe\Forms\GridField\GridFieldEditButton;
+use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\NumericField;
 use SilverStripe\Forms\OptionsetField;
@@ -382,7 +385,45 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             $requiredTypesTab->insertBefore('RequiredTypes', $lineBreak);
         }
 
+        // Add a list of tagged data objects
+        if ($this->exists()) {
+            $taggedObjects = $this->getTaggedDataObjects();
+            if ($taggedObjects->count()) {
+                //$taggedTab = $fields->findOrMakeTab('Root.Tagged');
+                $fields->addFieldToTab(
+                    'Root.Tagged',
+                    GridField::create(
+                        'TaggedObjects',
+                        'Objects',
+                        $taggedObjects,
+                        $taggedGridConf = GridFieldConfig_Base::create()
+                    )
+                );
 
+                // Customise the GridField's data columns and field castings
+                $taggedGridConf->getComponentByType(GridFieldDataColumns::class)
+                    ->setDisplayFields(
+                        [
+                            'ID'            => 'ID',
+                            'singular_name' => 'Object class name',
+                            'Title'         => 'Title',
+                            'LinkedThrough' => 'Relation',
+                            'CMSLink'       => 'Edit',
+                        ]
+                    )
+                    ->setFieldCasting(
+                        [
+                            'CMSLink' => 'HTMLFragment->RAW',
+                        ]
+                    );
+
+                // Increase the amount of items shown per page to 100
+                $taggedGridConf->getComponentByType(GridFieldPaginator::class)
+                    ->setItemsPerPage(100);
+            }
+        }
+
+        // Reorder
         if (!$this->ParentID && isset($termsTab)) {
             // reorder Tabs so Terms tab appears at the last position
             $fields->removeFieldFromTab('Root', ['Terms']);
@@ -928,5 +969,132 @@ HTML;
         }
 
         return parent::inferReciprocalComponent($remoteClass, $remoteRelation);
+    }
+
+
+    /**
+     * @throws \ReflectionException
+     * @return ArrayList
+     */
+    protected function getTaggedDataObjects()
+    {
+        $termID = $this->ID;
+
+        $list = ArrayList::create();
+
+        $classes = ClassInfo::subclassesFor(DataObject::class);
+
+        /**
+         * This will store a OwnerClassName.RelationName to bridging defination mapping when the BridgingObject's `to` is pointing to
+         * TaxonomyTerm, e.g.
+         * 'Page.Tags' => [
+         *      'RelationName'      => 'Tags',
+         *      'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
+         *      'GetOwnerFuncName'  => 'OwnerObject',
+         * ],
+         * 'Page.AnotherManyManyRelation' => [
+         *      'RelationName'      => 'AnotherManyManyRelation',
+         *      'BridgingClassName' => 'SomeNameSpace\MyObjectClassName',
+         *      'GetOwnerFuncName'  => 'Origin',
+         * ],
+         * 'SilverStripe\Assets\File.Tags' => [
+         *      'RelationName'      => 'Tags',
+         *      'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
+         *      'GetOwnerFuncName'  => 'OwnerObject',
+         * ],
+         */
+        $bridging = [];
+        foreach ($classes as $class) {
+            $relationCandidates = Config::inst()->get($class, 'many_many');
+            if (count($relationCandidates)) {
+                foreach ($relationCandidates as $field => $fieldType) {
+                    if (is_array($fieldType) && isset($fieldType['through']) && isset($fieldType['to']) && isset($fieldType['from'])) {
+                        // For bridging object, we only need to check has_one and the 'to' target is TaxonomyTerm
+                        $bridgeObjectClassName    = $fieldType['through'];
+                        $targetObjectRelationName = $fieldType['to'];
+                        $bridgeDefinition         = Config::inst()->get($bridgeObjectClassName, 'has_one');
+                        if (isset($bridgeDefinition[$targetObjectRelationName])
+                            && $bridgeDefinition[$targetObjectRelationName] === self::class) {
+                            $bridging[$class . '.' . $field] = [
+                                'RelationName'      => $field,
+                                'BridgingClassName' => $fieldType['through'],
+                                'GetOwnerFuncName'  => $fieldType['from'],
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        $relations = ['has_one', 'has_many', 'many_many'];
+        foreach ($classes as $class) {
+
+            // Exclude TaxonomyTerm and its subclasses from being the candidates to checked ralations, for the cases
+            // such as, terms are assigned to terms via hierarchy, etc
+            if (is_a($class, self::class, true)) {
+                continue;
+            }
+
+            foreach ($relations as $relation) {
+                $relationCandidates = Config::inst()->get($class, $relation);
+                if (count($relationCandidates)) {
+                    foreach ($relationCandidates as $field => $fieldType) {
+                        if ($fieldType === self::class) {
+                            $filterField = $field . ($relation === 'has_one' ? '' : '.') . 'ID';
+                            $items       = DataObject::get($class)->filter($filterField, $termID);
+
+                            $items->each(function ($item) use ($list, $field, $relation, $bridging) {
+                                $isBridgingObject = false;
+                                foreach ($bridging as $ownerClassRelationName => $bridgingDefination) {
+                                    if ($item->ClassName === $bridgingDefination['BridgingClassName']) {
+                                        $owner = $item->{$bridgingDefination['GetOwnerFuncName']}();
+                                        $fieldName = $bridgingDefination['RelationName'];
+                                        $relationName = 'many_many_through';
+                                        $isBridgingObject = true;
+
+                                        break;
+                                    }
+                                }
+                                if (!$isBridgingObject) {
+                                    $owner = $item;
+                                    $fieldName = $field;
+                                    $relationName = $relation;
+                                }
+
+                                $cmsLink = '';
+                                if ($owner->hasMethod('CMSEditLink')) {
+                                    $cmsLink = $owner->CMSEditLink();
+                                }
+
+                                if ($cmsLink) {
+                                    $cmsLink
+                                        = sprintf(
+                                            '<a href="%s" target="_blank" class="at-link-external">Edit</a>',
+                                            $cmsLink
+                                        );
+                                }
+
+                                $owner->UniqueID = sprintf(
+                                    '%s-%s-%s-%s',
+                                    $owner->ClassName,
+                                    $owner->ID,
+                                    $fieldName,
+                                    $relationName
+                                );
+                                $owner->LinkedThrough = sprintf('%s (%s)', $fieldName, $relationName);
+                                $owner->CMSLink = $cmsLink;
+
+                                $list->push($owner);
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove duplicates
+        $list->removeDuplicates('UniqueID');
+
+        return $list;
     }
 }

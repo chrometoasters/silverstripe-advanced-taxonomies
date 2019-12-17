@@ -48,7 +48,7 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
     ];
 
     private static $cascade_duplicates = [
-        'Tags'
+        'Tags',
     ];
 
     private static $summary_fields = [
