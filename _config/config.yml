@@ -3,7 +3,7 @@ Name: advanced-taxonomies
 ---
 SilverStripe\Admin\ModelAdmin:
   extensions:
-    - Chrometoaster\AdvancedTaxonomies\Extensions\TaxonomyModelAdminExtension
+    - Chrometoaster\AdvancedTaxonomies\Extensions\LeftAndMainTaxonomyExtension
 
 ---
 Only:

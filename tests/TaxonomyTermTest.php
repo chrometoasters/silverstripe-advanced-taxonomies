@@ -4,8 +4,9 @@ namespace Chrometoaster\AdvancedTaxonomies\Tests;
 
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject;
-use Chrometoaster\AdvancedTaxonomies\Validators\ModelTagLogicValidator;
+use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\Dev\SapphireTest;
+use SilverStripe\ORM\ManyManyThroughList;
 use SilverStripe\ORM\ValidationException;
 use SilverStripe\Versioned\Versioned;
 
@@ -20,7 +21,7 @@ class TaxonomyTermTest extends SapphireTest
 
     /**
      * Test a root TaxonomyTerm is acted as a 'type' for the taxonomy tree rooted from it. Its foreign key TypeID, flags
-     * SingleSelect and DisplayPreference are correctly spread to the non-root terms
+     * SingleSelect and InternalOnly are correctly spread to the non-root terms
      */
     public function testRootTermAsType()
     {
@@ -56,68 +57,59 @@ class TaxonomyTermTest extends SapphireTest
         );
 
 
-        // Test SingleSelect and DisplayPreference are inherited, using default values
-        $this->assertEquals(
-            $rootTerm3->SingleSelect,
-            0,
+        // Test SingleSelect and InternalOnly are inherited, using default values
+        $this->assertFalse(
+            $rootTerm3->getIsSingleSelect(),
             'Root term\'s SingleSelect is populated by its default'
         );
-        $this->assertEquals(
-            $childTerm31->SingleSelect,
-            0,
+        $this->assertFalse(
+            $childTerm31->getIsSingleSelect(),
             'Child term\'s SingleSelect inherits from the root term'
         );
-        $this->assertEquals(
-            $grandChildTerm322->SingleSelect,
-            0,
+        $this->assertFalse(
+            $grandChildTerm322->getIsSingleSelect(),
             'Deeply nested term\'s SingleSelect inherits from the root term'
         );
-        $this->assertEquals(
-            $rootTerm3->DisplayPreference,
-            1,
-            'Root term\'s DisplayPreference is populated by its default'
+        $this->assertFalse(
+            $rootTerm3->getIsInternalOnly(),
+            'Root term\'s InternalOnly is populated by its default'
         );
-        $this->assertEquals(
-            $childTerm31->DisplayPreference,
-            1,
-            'Child term\'s DisplayPreference inherits from the root term'
+        $this->assertFalse(
+            $childTerm31->getIsInternalOnly(),
+            'Child term\'s InternalOnly inherits from the root term'
         );
-        $this->assertEquals(
-            $grandChildTerm322->DisplayPreference,
-            1,
-            'Deeply nested term\'s SingleSelect inherits from the root term'
+        $this->assertFalse(
+            $grandChildTerm322->getIsInternalOnly(),
+            'Deeply nested term\'s InternalOnly inherits from the root term'
         );
 
 
-        // Test SingleSelect and DisplayPreference are inherited, using negation to the default values
+        // Test SingleSelect and InternalOnly are inherited, using negation to the default values
         $rootTerm4   = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm4');
         $leafTerm422 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p2p2');
-        $this->assertEquals(
-            $rootTerm4->SingleSelect,
-            1,
+        $this->assertTrue(
+            $rootTerm4->getIsSingleSelect(),
             'Root term\'s SingleSelect is populated as "true", i.e. negation of default value'
         );
-        $this->assertEquals(
-            $leafTerm422->SingleSelect,
-            1,
+        $this->assertTrue(
+            $leafTerm422->getIsSingleSelect(),
             'Deeply nested term\'s SingleSelect inherits from the root term no matter what the value is'
         );
-        $this->assertEquals(
-            $rootTerm4->DisplayPreference,
-            0,
-            'Root term\'s DisplayPreference is populated as "false", i.e. negation of default value'
+        $this->assertTrue(
+            $rootTerm4->getIsInternalOnly(),
+            'Root term\'s InternalOnly is populated as "false", i.e. negation of default value'
         );
-        $this->assertEquals(
-            $leafTerm422->DisplayPreference,
-            0,
-            'Deeply nested term\'s DisplayPreference inherits from the root term no matter what the value is'
+        $this->assertTrue(
+            $leafTerm422->getIsInternalOnly(),
+            'Deeply nested term\'s InternalOnly inherits from the root term no matter what the value is'
         );
     }
 
 
     /**
-     * Test a when a root TaxonomyTerm is altered, the altered flag attributes SingleSelect and DisplayPreference are
+     * Test a when a root TaxonomyTerm is altered, the altered flag attributes SingleSelect and InternalOnly are
      * correctly spread to the non-root terms in the same taxonomy tree
+     *
      * @throws ValidationException
      */
     public function testAttributesKeptInheritedWhenRootTermAltered()
@@ -125,34 +117,30 @@ class TaxonomyTermTest extends SapphireTest
         $rootTerm3         = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm3');
         $grandChildTerm322 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term3p2p2');
 
-        // Test SingleSelect and DisplayPreference are inherited, using default values
-        $this->assertEquals(
-            $grandChildTerm322->SingleSelect,
-            0,
+        // Test SingleSelect and InternalOnly are inherited, using default values
+        $this->assertFalse(
+            $grandChildTerm322->getIsSingleSelect(),
             'Deeply nested term\'s SingleSelect initial from the root term\'s default value'
         );
-        $this->assertEquals(
-            $grandChildTerm322->DisplayPreference,
-            1,
-            'Deeply nested term\'s DisplayPreference initial from the root term\'s default value'
+        $this->assertFalse(
+            $grandChildTerm322->getIsInternalOnly(),
+            'Deeply nested term\'s InternalOnly initial from the root term\'s default value'
         );
 
-        // Now change root attributes SingleSelect and DisplayPreference
-        $rootTerm3->SingleSelect      = true;
-        $rootTerm3->DisplayPreference = false;
+        // Now change root attributes SingleSelect and InternalOnly
+        $rootTerm3->SingleSelect = true;
+        $rootTerm3->InternalOnly = true;
         $rootTerm3->write();
 
         // Retrieve leaf term $grandChildTerm322
         $grandChildTerm322 = TaxonomyTerm::get()->byID($grandChildTerm322->ID);
-        $this->assertEquals(
-            $grandChildTerm322->SingleSelect,
-            1,
+        $this->assertTrue(
+            $grandChildTerm322->getIsSingleSelect(),
             'Deeply nested term\'s SingleSelect is altered when its root term is altered'
         );
-        $this->assertEquals(
-            $grandChildTerm322->DisplayPreference,
-            0,
-            'Deeply nested term\'s DisplayPreference is altered when its root term is altered'
+        $this->assertTrue(
+            $grandChildTerm322->getIsInternalOnly(),
+            'Deeply nested term\'s InternalOnly is altered when its root term is altered'
         );
     }
 
@@ -199,17 +187,17 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertCount(
             2,
-            $level2Term3p1p1->RequiredTypesOverall(),
+            $level2Term3p1p1->getAllRequiredTypes(),
             'calculated RequiredTypes for leaf level2Term3p1p1 from the rootTerm3 have not changed'
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level2Term3p1p1->RequiredTypesOverall()->column('ID'),
+            $level2Term3p1p1->getAllRequiredTypes()->column('ID'),
             'Leaf level2Term3p1p1\'s calculated RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm2->ID,
-            $level2Term3p1p1->RequiredTypesOverall()->column('ID'),
+            $level2Term3p1p1->getAllRequiredTypes()->column('ID'),
             'Leaf level2Term3p1p1\'s calculated RequiredTypes contain rootTerm2'
         );
 
@@ -229,15 +217,14 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $rootTerm4->RequiredTypesOverall()->column('ID'),
+            $rootTerm4->getAllRequiredTypes()->column('ID'),
             'rootTerm4\'s RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm3->ID,
-            $rootTerm4->RequiredTypesOverall()->column('ID'),
+            $rootTerm4->getAllRequiredTypes()->column('ID'),
             'rootTerm4\'s RequiredTypes contain rootTerm3'
         );
-
 
 
         // Test the middle-level term level1Term4p1
@@ -248,12 +235,12 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level1Term4p1->RequiredTypesOverall()->column('ID'),
+            $level1Term4p1->getAllRequiredTypes()->column('ID'),
             'level1Term4p1\'s RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm2->ID,
-            $level1Term4p1->RequiredTypesOverall()->column('ID'),
+            $level1Term4p1->getAllRequiredTypes()->column('ID'),
             'level1Term4p1\'s RequiredTypes contain rootTerm2'
         );
         $this->assertEquals(
@@ -263,17 +250,17 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertCount(
             2,
-            $level1Term4p1->RequiredTypesOverall(),
+            $level1Term4p1->getAllRequiredTypes(),
             'calculated RequiredTypes for level1Term4p1 from the rootTerm4 have not changed'
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level1Term4p1->RequiredTypesOverall()->column('ID'),
+            $level1Term4p1->getAllRequiredTypes()->column('ID'),
             'level1Term4p1\'s calculated RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm2->ID,
-            $level1Term4p1->RequiredTypesOverall()->column('ID'),
+            $level1Term4p1->getAllRequiredTypes()->column('ID'),
             'level1Term4p1\'s calculated RequiredTypes contain rootTerm2'
         );
 
@@ -286,12 +273,12 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level2Term4p2p1->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p1->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p1\'s RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm2->ID,
-            $level2Term4p2p1->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p1->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p1\'s RequiredTypes contain rootTerm2'
         );
         $this->assertEquals(
@@ -301,22 +288,22 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertCount(
             3,
-            $level2Term4p2p1->RequiredTypesOverall(),
+            $level2Term4p2p1->getAllRequiredTypes(),
             'Overall RequiredTypes are conjunction of the RequiredTypes from both rootTerm4 and level2Term4p2p1'
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level2Term4p2p1->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p1->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p1\'s overall RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm2->ID,
-            $level2Term4p2p1->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p1->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p1\'s overall RequiredTypes contain rootTerm2'
         );
         $this->assertContains(
             $rootTerm3->ID,
-            $level2Term4p2p1->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p1->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p1\'s overall RequiredTypes contain rootTerm3'
         );
 
@@ -334,17 +321,17 @@ class TaxonomyTermTest extends SapphireTest
         );
         $this->assertCount(
             2,
-            $level2Term4p2p2->RequiredTypesOverall(),
+            $level2Term4p2p2->getAllRequiredTypes(),
             'Overall RequiredTypes for level2Term4p2p2 are inherited from both rootTerm4'
         );
         $this->assertContains(
             $rootTerm1->ID,
-            $level2Term4p2p2->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p2->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p2\'s overall RequiredTypes contain rootTerm1'
         );
         $this->assertContains(
             $rootTerm3->ID,
-            $level2Term4p2p2->RequiredTypesOverall()->column('ID'),
+            $level2Term4p2p2->getAllRequiredTypes()->column('ID'),
             'level2Term4p2p2\'s overall RequiredTypes contain rootTerm3'
         );
     }
@@ -413,26 +400,25 @@ class TaxonomyTermTest extends SapphireTest
 
         // Test no breaking logic for object1
         $this->assertEquals(
-            $rootTerm4->SingleSelect,
+            $rootTerm4->getIsSingleSelect(),
             1,
             'rootTerm4 is a root for taxonomy tree of "single select"'
         );
-        $this->assertCount(2, $rootTerm4->RequiredTypesOverall(), 'rootTerm4 required 2 types');
+        $this->assertCount(2, $rootTerm4->getAllRequiredTypes(), 'rootTerm4 required 2 types');
         $this->assertContains(
             $rootTerm1->ID,
-            $rootTerm4->RequiredTypesOverall()->column('ID'),
+            $rootTerm4->getAllRequiredTypes()->column('ID'),
             'rootTerm4 require one tag from rootTerm1'
         );
         $this->assertContains(
             $rootTerm3->ID,
-            $rootTerm4->RequiredTypesOverall()->column('ID'),
+            $rootTerm4->getAllRequiredTypes()->column('ID'),
             'rootTerm4 require one tag from rootTerm3'
         );
 
 
-        $this->assertEquals(
-            $rootTerm3->SingleSelect,
-            0,
+        $this->assertFalse(
+            $rootTerm3->getIsSingleSelect(),
             'rootTerm3 is a root for taxonomy tree of "multi select"'
         );
         $this->assertEquals(
@@ -441,12 +427,17 @@ class TaxonomyTermTest extends SapphireTest
             'rootTerm3 and level2Term3p2p2 have same type'
         );
 
-        // Test object1 tags satisfy all the logic
-        $requiredValid = ModelTagLogicValidator::requiredTypesValidate($object1->Tags());
-        $this->assertTrue($requiredValid, 'Tags on object1 satisfy logic defined by RequiredTypes relation');
+        $validator = TaxonomyRulesValidator::create();
 
-        $singleSelectValid = ModelTagLogicValidator::singleSelectValidate($object1->Tags());
-        $this->assertTrue($singleSelectValid, 'Tags on object1 satisfy logic defined by SingleSelect flag');
+        // Test object1 tags satisfy all the logic
+        $this->assertEmpty(
+            $validator->validateRequiredTypes($object1->Tags()),
+            'Tags on object1 satisfy logic defined by RequiredTypes relation'
+        );
+        $this->assertEmpty(
+            $validator->validateSingleSelectTypes($object1->Tags()),
+            'Tags on object1 satisfy logic defined by SingleSelect flag'
+        );
     }
 
 
@@ -563,10 +554,38 @@ class TaxonomyTermTest extends SapphireTest
 
 
         // Assert no validation errors
-        $valid = ModelTagLogicValidator::requiredTypesValidate($object2->Tags());
-        $this->assertTrue(
-            $valid,
+        $validator = TaxonomyRulesValidator::create();
+
+        // Test object1 tags satisfy all the logic
+        $this->assertEmpty(
+            $validator->validateRequiredTypes($object2->Tags()),
             'No deadlock situation occurs when validating RequiredTypes logic for object2'
         );
     }
+
+
+    /**
+     * Test the collection of tagged dataobjects
+     */
+    public function testTaggedObjectsCollectionMechanism()
+    {
+        $tag     = $this->objFromFixture(TaxonomyTerm::class, 'tagForTaggedObjects');
+        $object5 = $this->objFromFixture(OwnerObject::class, 'object5');
+
+        // expect 2 dataobjects tagged
+        $this->assertEquals(
+            2,
+            $tag->getTaggedDataObjects()->count(),
+            'tagForTaggedObjects should show two tagged objects'
+        );
+
+        // remove one tag and expect 1 dataobject tagged only
+        $object5->Tags()->remove($tag);
+        $this->assertEquals(
+            1,
+            $tag->getTaggedDataObjects()->count(),
+            'tagForTaggedObjects should show one tagged objects after a tag removal'
+        );
+    }
+
 }

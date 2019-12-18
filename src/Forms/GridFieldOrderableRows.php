@@ -92,7 +92,7 @@ class GridFieldOrderableRows extends OriginalGridFieldOrderableRows
         $sortlist = DataList::create($joinClass)->filter([
             $toRelationName => $list->column('ID'),
             // first() is safe as there are earlier checks to ensure our list to sort is valid
-            $fromRelationName => $list->first()->getJoin()->$fromRelationName,
+            $fromRelationName => $list->first()->getJoin()->{$fromRelationName},
         ]);
 
         return $sortlist->map($toRelationName, $sortField)->toArray();

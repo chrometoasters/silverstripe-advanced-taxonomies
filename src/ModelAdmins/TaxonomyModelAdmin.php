@@ -7,7 +7,6 @@ use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Admin\ModelAdmin;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
-use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\ORM\SS_List;
 use SilverStripe\View\Requirements;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
@@ -76,12 +75,6 @@ class TaxonomyModelAdmin extends ModelAdmin
         // Customise the GridFieldAddNewButton's label
         $gf->getConfig()->getComponentByType(GridFieldAddNewButton::class)
             ->setButtonName('Add taxonomy');
-
-        // Set column value castings
-        $dataColumns = $gf->getConfig()->getComponentByType(GridFieldDataColumns::class);
-        $dataColumns->setFieldCasting(
-            array_merge($dataColumns->getFieldCasting(), ['NameAsATag' => 'HTMLFragment->RAW'])
-        );
 
         $form->addExtraClass('at-modeladmin-editform');
 
