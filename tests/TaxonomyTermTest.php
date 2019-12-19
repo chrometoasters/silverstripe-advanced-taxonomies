@@ -496,9 +496,9 @@ class TaxonomyTermTest extends SapphireTest
         $object1FromLive = OwnerObject::get()->byID($object1->ID);
         $this->assertNull($object1FromLive, 'object1 doesn\'t exist on Live table after being unpublished');
         $rootTerm1FromLive = TaxonomyTerm::get()->byID($rootTerm1->ID);
-        $this->assertNull(
+        $this->assertNotNull(
             $rootTerm1FromLive,
-            'rootTerm1 doesn\'t exist on Live table after object1 being unpublished'
+            'rootTerm1 still exists on Live after object1 being unpublished'
         );
 
         $object1->doArchive();
@@ -506,9 +506,9 @@ class TaxonomyTermTest extends SapphireTest
         $object1FromStage = OwnerObject::get()->byID($object1->ID);
         $this->assertNull($object1FromStage, 'object1 doesn\'t exist on Stage table after being archived');
         $rootTerm1FromStage = TaxonomyTerm::get()->byID($rootTerm1->ID);
-        $this->assertNull(
+        $this->assertNotNull(
             $rootTerm1FromStage,
-            'rootTerm1 doesn\'t exist on Stage table after object1 being archived'
+            'rootTerm1 still exists on Stage after object1 being archived'
         );
 
         // Restore the orig archived stage
