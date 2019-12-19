@@ -263,7 +263,7 @@ class TaxonomyRulesValidator extends RequiredFields
         // create term decorators for HTML-enabled validation output
         if ($this->enableHTMLOutput) {
             $termsDecorator = function (TaxonomyTerm $term) {
-                return sprintf('<b>%s</b>', $term->getModelAdminEditLink());
+                return sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_Terms'));
             };
             $termsDecoratorRequired = function (TaxonomyTerm $term) {
                 return sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_RequiredTypes'));
