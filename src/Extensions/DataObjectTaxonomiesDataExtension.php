@@ -45,11 +45,6 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         'Tags',
     ];
 
-    // Delete the joining objects when the owner gets deleted
-    private static $cascade_deletes = [
-        'Tags',
-    ];
-
     // Duplicate the joining objects when the owner gets duplicated
     private static $cascade_duplicates = [
         'Tags',
