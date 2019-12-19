@@ -58,12 +58,13 @@
 }
 
 /* style for a link with .at-link-external */
-a.at-link-external {
+.at-link-external {
     padding-right: 1em;
     background-image: url(./img/icons/external-icon--blue.svg);
     background-repeat: no-repeat;
     background-position: 100%;
     background-size: .75em .75em;
+    text-decoration: underline;
 }
 
 /* Mobile view fixing for GridField that lists TaxonomyTerm */
