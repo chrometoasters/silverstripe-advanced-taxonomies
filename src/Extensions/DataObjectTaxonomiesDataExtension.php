@@ -6,7 +6,7 @@ use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
-use Chrometoaster\AdvancedTaxonomies\Validators\ModelTagLogicValidator;
+use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
@@ -18,14 +18,16 @@ use SilverStripe\Forms\GridField\GridFieldFilterHeader;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataList;
+use SilverStripe\ORM\FieldType\DBField;
+use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\Versioned\GridFieldArchiveAction;
 
 /**
  * Class DataObjectTaxonomiesDataExtension
  *
- * This extension will be applied to DataObject covering SiteTree, BaseElement, File and any other models that extended
- * from DataObject, it add a many-many relation (labelled 'Tags') between the model and TaxonomyTerm. It provides a
- * generic CMS user interface for adding tags to the models that is applied by this extension.
+ * This extension will be applied to classes like SiteTree, BaseElement, File and any other models that extend
+ * from DataObject. It adds a many-many relation (labelled 'Tags') between the model and the TaxonomyTerm.
+ * It provides a generic CMS user interface for adding tags to the models.
  */
 class DataObjectTaxonomiesDataExtension extends DataExtension
 {
@@ -37,27 +39,19 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         ],
     ];
 
-    // Automatically publish tags (TaxonomyTerm) whenever the owner (DataObject) get published.
+    // Publish the joining object and the joined TaxonomyTerm object whenever the owner gets published
     private static $owns = [
         'Tags',
     ];
 
-    // Perform deletions on tags (TaxonomyTerm) once the owner (DataObject) get deleted
+    // Delete the joining objects when the owner gets deleted
     private static $cascade_deletes = [
         'Tags',
     ];
 
+    // Duplicate the joining objects when the owner gets duplicated
     private static $cascade_duplicates = [
         'Tags',
-    ];
-
-    private static $summary_fields = [
-        'TagNames' => 'Tags',
-    ];
-
-    private static $casting = [
-        'TagNames'    => 'HTMLFragment',
-        'getTagNames' => 'HTMLFragment',
     ];
 
 
@@ -66,17 +60,17 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
      */
     public function updateCMSFields(FieldList $fields)
     {
-        // For a new DataObject that has not saved, no Tags related fields should be added.
-        if (!$this->owner->exists()) {
+        // Hide all Tags related fields for unsaved dataobjects
+        if (!$this->getOwner()->exists()) {
             return;
         }
-        // Tags GridField is tweaked so as not to allow adding/deleting/archiving TaxonomyTerm from here
+
+        // Remove config components from the Tags gridfield to disallow adding/deleting/archiving taxonomy terms from here
         $components = GridFieldConfig_RelationEditor::create();
         $components->removeComponentsByType(GridFieldAddNewButton::class);
         $components->removeComponentsByType(GridFieldEditButton::class);
         $components->removeComponentsByType(GridFieldArchiveAction::class);
         $components->removeComponentsByType(GridFieldFilterHeader::class);
-
 
         // Shift the GridFieldAddExistingAutocompleter component to left
         $components->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
@@ -86,33 +80,28 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
 
         $components->getComponentByType(GridFieldDataColumns::class)->setDisplayFields(
             [
-                'TagName'                 => 'Name',
-                'DescriptionLimit15Words' => 'Description',
-                'RequiredTypeNames'       => 'Requires',
+                'getNameAsTagWithExtraInfo' => 'Name',
+                'getDescription15Words'     => 'Description',
+                'getAllRequiredTypesNames'  => 'Requires',
             ]
         );
 
         $components->addComponent(GridFieldOrderableRows::create('Sort'));
-        $components->getComponentByType(GridFieldDataColumns::class)->setFieldCasting(
-            [
-                'TagName' => 'HTMLFragment->RAW',
-            ]
-        );
 
-        $autoResultFormat = '&nbsp;{$getHierarchyDisplay}&nbsp;';
+        $autoResultFormat = '&nbsp;{$getTermHierarchy}&nbsp;';
         $addExisting->setResultsFormat($autoResultFormat);
         $addExisting->setPlaceholderText('Add tags by name');
 
+        // create a list of term candidates, excluding single select types which already have a tag in the list
+        // - this works in real time as adding a tag adds it to the list, even when unsaved
         $searchList          = DataList::create(TaxonomyTerm::class);
-        $singleSelectTypeIDs = $this->getTypeIDsWithSingleSelectOn();
+        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags())->column('ID');
         if (!empty($singleSelectTypeIDs)) {
             $searchList = $searchList->exclude('TypeID', $singleSelectTypeIDs);
         }
-
         // TODO: find-out why the following sorting doesn't effect in the real time.
         //        $searchList = $searchList->sort(['TypeID'=>'ASC', 'Name' => 'ASC']);
         //        TaxonomyTerm::config()->update('default_sort', ['TypeID'=>'ASC', 'Name' => 'ASC']);
-
         $addExisting->setSearchList($searchList);
 
         $fields->findOrMakeTab('Root.Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
@@ -121,40 +110,21 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
             $gridField = GridField::create(
                 'Tags',
                 _t(self::class . '.ManyManyTags', 'Tags'),
-                $this->owner->Tags(),
+                $this->getOwner()->Tags(),
                 $components
             )
         );
 
-        // Give warning message if RequireTypes' terms are not tagged
-        $requiredTypesOffended = ModelTagLogicValidator::requiredTypesValidate($this->owner->Tags());
+        $validator                    = TaxonomyRulesValidator::create();
+        $requiredTypesValidationError = $validator->validateRequiredTypes(
+            $this->getOwner()->Tags(),
+            ...$validator->getValidationMessagesDecorators()
+        );
 
-        // The $requiredTypesOffended is either a boolean of 'true', indicating it is validated against RequiredTypes
-        // or holding two set of Terms as DataList:
-        // one set is 'offending' terms, one set is 'requiring' types (root terms)
-        if ($requiredTypesOffended !== true) {
-            $origHTML = ModelTagLogicValidator::config()->get('output_html_enabled');
-            ModelTagLogicValidator::config()->update('output_html_enabled', true);
-            $typesMissed = ModelTagLogicValidator::getConcatTitlesNiceByTerms(
-                $requiredTypesOffended['requiring'],
-                true,
-                'Root_Terms'
-            );
-            $termsMissedBy = ModelTagLogicValidator::getConcatTitlesNiceByTerms(
-                $requiredTypesOffended['offending'],
-                false,
-                'Root_RequiredTypes'
-            );
-            ModelTagLogicValidator::config()->update('output_html_enabled', $origHTML);
-
-            $errorMessage = 'Please also add one or more tags from the '
-                . (($requiredTypesOffended['requiring']->count() === 1) ? '' : 'related ') . $typesMissed
-                . '. The required taxonomies settings of the ' . $termsMissedBy
-                . (($requiredTypesOffended['offending']->count() === 1) ? ' term' : ' terms')
-                . ', mean you now need to add at least one tag from related taxonomies, too.';
+        if ($requiredTypesValidationError) {
             $fields->addFieldToTab(
                 'Root.Tags',
-                LiteralField::create('MissingTagsWarning', '<p class="bad message">' . $errorMessage . '</p>'),
+                LiteralField::create('MissingTagsWarning', sprintf('<p class="bad message">%s</p>', $requiredTypesValidationError)),
                 'Tags'
             );
         }
@@ -173,118 +143,56 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
 
 
     /**
+     * Place the tags summary column to the end of the list of summary fields
+     *
      * @param mixed $fields
      * @return array
      */
     public function updateSummaryFields(&$fields)
     {
-        // Reorder the summary fields to make Tags column to be the last column
         $tagNamesSummary = null;
         foreach ($fields as $key => $summary) {
-            if ($key == 'TagNames') {
+            if ($key === 'getNamesAsTagWithExtraInfo') {
                 $tagNamesSummary = $fields[$key];
                 unset($fields[$key]);
             }
         }
 
         if ($tagNamesSummary) {
-            $fields['TagNames'] = $tagNamesSummary;
+            $fields['getNamesAsTagWithExtraInfo'] = $tagNamesSummary;
         }
     }
 
 
     /**
-     * @return array
-     */
-    public function getTypeIDsWithSingleSelectOn()
-    {
-        $candidateTypeIDs = array_unique($this->owner->Tags()->column('TypeID'));
-        if (!empty($candidateTypeIDs)) {
-            return $singleSelectedTypeIDs = TaxonomyTerm::get()->filter('ParentID', 0)
-                ->filterAny('ID', $candidateTypeIDs)->filter('SingleSelect', true)->column('ID');
-        }
-    }
-
-
-    /**
-     * The function is to provide a model's associated tags presented in a well formatted way:
-     * 1. The tags names are being formatted like a 'tag' which is wrapped by special HTML tags with some special
-     *    classes
-     * 2. The tags other information is also added to this presentation but as tooltips, since this presentation is
-     *    to be shown as GridField columns' value, i.e. inside a table cell, the space holding this presentation is
-     *    limited.
+     * Provide model's associated terms' names as tags with additional term info
      *
-     * @return string
+     * Additional information is added to the presentation as tooltip, allowing for the information to be
+     * presented also e.g. in GridField columns, where the space is limited.
+     *
+     * @param string $delimiter
+     * @return DBHTMLText|DBField
      */
-    public function getTagNames()
+    public function getTagNamesWithExtraInfo(string $delimiter = ' '): DBHTMLText
     {
         $names = [];
 
-        $lineBreaks = '<br><br>';
-        $bTagOpen   = '<b>';
-        $bTagClose  = '</b>';
-
-        foreach ($this->owner->Tags() as $tag) {
-            $authoringDefinition = $tag->AuthorDefinition ? $tag->AuthorDefinition : null;
-            $hierarchy           = $tag->getHierarchyDisplay();
-
-            $typeInfo = $tag->TypeNameWithFlagAttributes();
-
-            // We want two line breaks if the term's AuthorDefinition is defined
-            $tooltipText = '';
-            if ($authoringDefinition) {
-                $tooltipText .= $authoringDefinition . $lineBreaks;
-            }
-
-            // Show the term's hierarchy information
-            $tooltipText .= $bTagOpen . 'Taxonomy' . $bTagClose . ': ' . $hierarchy;
-
-            // Show the term's information on 'Display name singular'
-            if ($tag->Title) {
-                $tooltipText .= $lineBreaks . $bTagOpen . 'Singular' . $bTagClose . ': ' . $tag->Title;
-            }
-
-            // Show the term's information on 'Display name plural'
-            if ($tag->TitlePlural) {
-                $tooltipText .= $lineBreaks . $bTagOpen . 'Plural' . $bTagClose . ': ' . $tag->TitlePlural;
-            }
-
-            // Show the term's information on 'Type' and Type's logic attribule, i.e. which root term it belongs to,
-            // it is Multi or Single
-            if ($typeInfo) {
-                $tooltipText .= $lineBreaks . $bTagOpen . 'Type' . $bTagClose . ': ' . $typeInfo;
-            }
-
-            // Overall required types, i.e. computed from tag's required types, the root term's required types
-            // using the logic setting flag 'RequiredTypesInheritRoot'
-            if ($types = $tag->RequiredTypesOverall()) {
-                if ($types && $types->exists()) {
-                    $tooltipText .= $lineBreaks . $bTagOpen . 'Required taxonomies' . $bTagClose . ': '
-                        . implode(', ', $types->column('Name'));
-                }
-            }
-
-            $tagNameFormat = <<<HTML
-<span class="Select--multi">
-    <span class="Select-value-label Select-value with-tooltip">
-        %s<span class="at-tooltip">%s</span>
-     </span>
-</span>
-HTML;
-            $names[] = sprintf($tagNameFormat, $tag->Name, $tooltipText);
+        /** @var TaxonomyTerm $tag */
+        foreach ($this->getOwner()->Tags() as $tag) {
+            $names[] = (string) $tag->getNameAsTagWithExtraInfo();
         }
 
-        return implode(' ', $names);
+        return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
     }
 
 
     /**
-     * All Tags with DisplayPreference being true, give a owner object
+     * All terms with InternalOnly being true for the given owner object
      *
      * @return mixed
      */
     public function getDisplayableTags()
     {
-        return $this->owner->Tags()->filter('DisplayPreference', true);
+        return $this->getOwner()->Tags()->filter('InternalOnly', false);
     }
 }

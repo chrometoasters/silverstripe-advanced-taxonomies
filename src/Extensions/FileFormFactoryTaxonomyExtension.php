@@ -3,7 +3,7 @@
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
-use Chrometoaster\AdvancedTaxonomies\Validators\ModelTagLogicValidator;
+use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\AssetAdmin\Forms\AssetFormFactory;
 use SilverStripe\Assets\Folder;
 use SilverStripe\Core\Extension;
@@ -13,10 +13,14 @@ use SilverStripe\Forms\TreeMultiselectField;
 
 /**
  * Class FileFormFactoryTaxonomyExtension
+ *
+ * Adds TreeMultiselectField to asset admin to be able to tag files.
  */
 class FileFormFactoryTaxonomyExtension extends Extension
 {
     /**
+     * Update/add fields to file admin form
+     *
      * @param FieldList $fields
      * @param $controller
      * @param $formName
@@ -29,12 +33,12 @@ class FileFormFactoryTaxonomyExtension extends Extension
         // AssetFormFactory::TYPE_INSERT_LINK, AssetFormFactory::TYPE_INSERT_MEDIA, or AssetFormFactory::TYPE_SELECT
         $type = static::getFormTypeFromContext($context);
 
-        if ($formName == 'fileEditForm' || $type == AssetFormFactory::TYPE_ADMIN) {
+        if ($formName === 'fileEditForm' || $type === AssetFormFactory::TYPE_ADMIN) {
             $record = $context['Record'];
 
             if (!is_a($record, Folder::class)) {
 
-                // Avoid to use $fields->findOrMakeTab() so as to add the tab "Tags" right after the first tab "Details"
+                // Avoid using $fields->findOrMakeTab() so the tab "Tags" is added right after the first tab "Details"
                 $editorTabSet = $fields->fieldByName('Editor');
                 $tagsTab      = Tab::create('Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
                 $editorTabSet->insertAfter('Details', $tagsTab);
@@ -60,6 +64,8 @@ class FileFormFactoryTaxonomyExtension extends Extension
 
 
     /**
+     * Add custom validator to check required types and single select validation.
+     *
      * @param $form
      * @param $controller
      * @param $name
@@ -68,8 +74,9 @@ class FileFormFactoryTaxonomyExtension extends Extension
     public function updateForm($form, $controller, $name, $context)
     {
         $defaultValidator = $form->getValidator();
-        $validator        = ModelTagLogicValidator::create();
+        $validator        = TaxonomyRulesValidator::create();
         $validator->appendRequiredFields($defaultValidator);
+        $validator->setHTMLOutput(false);
 
         $form->setValidator($validator);
     }

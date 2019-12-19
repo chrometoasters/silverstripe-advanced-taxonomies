@@ -37,7 +37,7 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
   rootTerm4:
     Name: "Root term 4"
     SingleSelect: true
-    DisplayPreference: false
+    InternalOnly: true
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
                    =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
 
@@ -77,21 +77,28 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     # We are going to add the relation above in the UT case where it is needed
 
   typeY:
-    Name: "Root term Y, requiring Type X"
+    Name: "Root term Y, required Type X"
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeX
 
   typeZ:
-    Name: "Root term Z, requiring Type Y"
+    Name: "Root term Z, required Type Y"
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeY
+
+  tagForTaggedObjects:
+    Name: "Tag for TaggedObjects collection testing"
 
 
 Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject:
   object1:
     Title: 'Data object 1'
   object2:
-    Title: 'Data object 2, for testing required types under a requiring loop'
+    Title: 'Data object 2, for testing required types under a required loop'
   object3:
     Title: 'Data object 3'
+  object4:
+    Title: 'Data object 4'
+  object5:
+    Title: 'Data object 5'
 
 
 Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm:
@@ -126,3 +133,10 @@ Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm:
   tagZ:
     OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object2
     JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.typeZ
+
+  taggedObject1:
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object4
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.tagForTaggedObjects
+  taggedObject2:
+    OwnerObject: =>Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject.object5
+    JointObject: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.tagForTaggedObjects

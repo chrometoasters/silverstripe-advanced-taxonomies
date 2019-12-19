@@ -2,7 +2,11 @@
   "name": "chrometoaster/silverstripe-advanced-taxonomies",
   "description": "Advanced taxonomies",
   "type": "silverstripe-vendormodule",
-  "keywords": ["silverstripe", "taxonomy", "advanced taxonomies"],
+  "keywords": [
+    "silverstripe",
+    "taxonomy",
+    "advanced taxonomies"
+  ],
   "homepage": "http://github.com/chrometoasters/silverstripe-advanced-taxonomies",
   "license": "BSD-3-Clause",
   "authors": [
@@ -30,6 +34,10 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require-dev": {
-    "chrometoaster/backend-coding-standards": "~1.0"
+    "chrometoaster/backend-coding-standards": "~1.1"
+  },
+  "scripts": {
+    "lint": "parallel-lint src tests --colors && ecs check src tests --ansi",
+    "lint-fix": "parallel-lint src tests --colors && ecs check src tests --fix --ansi"
   }
 }

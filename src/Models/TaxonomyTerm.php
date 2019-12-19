@@ -6,6 +6,7 @@ use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
+use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Forms\FieldList;
@@ -24,13 +25,18 @@ use SilverStripe\i18n\i18n;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\DataObjectSchema;
 use SilverStripe\ORM\DB;
+use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\ORM\FieldType\DBText;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
+use SilverStripe\ORM\Queries\SQLSelect;
+use SilverStripe\ORM\SS_List;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Versioned\GridFieldArchiveAction;
+use SilverStripe\View\ViewableData;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**
@@ -56,41 +62,34 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         'AuthorDefinition'         => 'Text',
         'PublicDefinition'         => 'Text',
         'SingleSelect'             => 'Boolean(0)',
-        'DisplayPreference'        => 'Boolean(1)',
+        'InternalOnly'             => 'Boolean(0)',
         'RequiredTypesInheritRoot' => 'Boolean(1)',
         'Sort'                     => 'Int',
     ];
 
     private static $indexes = [
-        // The way we create the URLSegment make this value unique object-type-wisely, so ideally we should set it as:
-        // 'URLSegment' => ['type'=>'unique', 'value'=>'URLSegment', 'ignoreNulls'=>true], but the setting makes lots of
-        // issues due to duplicated Null value for MSSQL database engine.
-        'URLSegment'        => true,
-        'SingleSelect'      => true,
-        'DisplayPreference' => true,
+        'URLSegment'   => true,
+        'SingleSelect' => true,
+        'InternalOnly' => true,
     ];
 
     private static $has_many = [
         'Children'                => self::class . '.Parent',
         'Terms'                   => self::class . '.Type',
-        'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class,
+        'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class, // used for the ManyManyThrough joining object
     ];
 
     private static $has_one = [
         'Parent' => self::class,
-        'Type'   => self::class, //it is supposed to be the root node of the taxonomy family tree
+        'Type'   => self::class, // the root node of the particular taxonomy tree
     ];
 
     private static $many_many = [
         'RequiredTypes' => self::class,
     ];
 
-    private static $belongs_many_many = [
-        'AsRequiredTypeBy' => self::class . '.RequiredTypes',
-    ];
-
     private static $defaults = [
-        'DisplayPreference'        => true,
+        'InternalOnly'             => false,
         'RequiredTypesInheritRoot' => true,
     ];
 
@@ -98,7 +97,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         'Title'                    => 'Display name singular',
         'TitlePlural'              => 'Display name plural',
         'SingleSelect'             => 'Single select?',
-        'DisplayPreference'        => 'Show to end-users?',
+        'InternalOnly'             => 'Internal only, hide from end-users?',
         'RequiredTypesInheritRoot' => 'Inherit required types from the root term?',
     ];
 
@@ -112,22 +111,15 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         Hierarchy::class,
     ];
 
-    private static $casting = [
-        'NameAsATag'              => 'HTMLFragment',
-        'RequiredTypeNames'       => 'HTMLFragment',
-        'DescriptionLimit15Words' => 'Text',
-        'TagName'                 => 'HTMLFragment',
-    ];
-
     private static $default_sort = 'Sort';
 
     private static $summary_fields = [
-        'NameAsATag'                 => 'Name',
-        'DescriptionLimit15Words'    => 'Description',
-        'TypeNameWithFlagAttributes' => 'Type',
-        'Title'                      => 'Singular',
-        'TitlePlural'                => 'Plural',
-        'RequiredTypeNames'          => 'Requires',
+        'getNameAsTag'             => 'Name',
+        'getDescription15Words'    => 'Description',
+        'getTypeNameWithFlags'     => 'Type',
+        'Title'                    => 'Singular',
+        'TitlePlural'              => 'Plural',
+        'getAllRequiredTypesNames' => 'Requires',
     ];
 
 
@@ -145,9 +137,6 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         // TypeID is the ID of this term's root term which will be automatically populated by the hierarchy,
         // so it should be removed unconditionally
         $fields->removeByName('TypeID');
-
-        // Remove reversed belongs_many_many GridField and its tab "AsRequiredTypeBy" not to confuse CMS users
-        $fields->removeByName('AsRequiredTypeBy');
 
         // Remove the many_many_through data object DataObjectTaxonomyTerms
         $fields->removeByName('DataObjectTaxonomyTerms');
@@ -186,58 +175,64 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         $urlSegmentDescription = _t(static::class . '.URLSegment_Description');
         $fields->dataFieldByName('URLSegment')->setDescription($urlSegmentDescription);
 
-        // Tweak DisplayPreference
+        // Tweak InternalOnly
         if ($this->ParentID) {
-            $fields->removeByName('DisplayPreference');
+            $fields->removeByName('InternalOnly');
         } else {
-            // Field DisplayPreference
-            $displayDescription = _t(static::class . '.DisplayPreference_Description');
+            // Field InternalOnly
+            $internalOnlyFieldDescription = _t(static::class . '.InternalOnly_Description');
             $fields->replaceField(
-                'DisplayPreference',
-                $displayPreferenceField = OptionsetField::create(
-                    'DisplayPreference',
-                    'Show to end-user?',
+                'InternalOnly',
+                $publicTypeField = OptionsetField::create(
+                    'InternalOnly',
+                    'Internal only, hide from end-user?',
                     [1 => 'Yes', 0 => 'No']
                 )
             );
 
-            $displayPreferenceField->setDescription($displayDescription);
+            $publicTypeField->setDescription($internalOnlyFieldDescription);
         }
 
         // Tweak SingleSelect
         if ($this->ParentID) {
             $fields->removeByName('SingleSelect');
         } else {
-            // Convert SingleSelect to be read-only and give different description according to its logic
-            $readonly                = false;
-            $foundObjectsBeingTagged = $this->findOneDataObjectTagged();
-            $objectName              = 'data object';
-            $fields->replaceField(
+
+            // SingleSelect field definition, may be transformed to read only below
+            $singleSelectField = OptionsetField::create(
                 'SingleSelect',
-                $singleSelectField = OptionsetField::create(
-                    'SingleSelect',
-                    'Single select?',
-                    [1 => 'Yes', 0 => 'No']
-                )
+                'Single select?',
+                [1 => 'Yes', 0 => 'No']
             );
 
-            if (!empty($foundObjectsBeingTagged)) {
-                $readonly = true;
-                $fields->replaceField(
-                    'SingleSelect',
-                    $singleSelectField = $singleSelectField->performReadonlyTransformation()
-                );
-                $class      = $foundObjectsBeingTagged['objectType'];
-                $objectName = mb_strtolower(singleton($class)->singular_name());
+            // list of classes that are tagged with a term from this type
+            $typeTaggedClasses = $this->getTypeTaggedClasses();
+
+            // when there are objects of any class tagged, the SingleSelect option should become read only
+            $readonly = (count($typeTaggedClasses) !== 0);
+
+            // is the option selected?
+            $checked = (bool) $this->SingleSelect;
+
+            // generic object pseudo-class to be used in the description text
+            $taggedClass = 'data object';
+
+            if ($readonly) {
+                $singleSelectField = $singleSelectField->performReadonlyTransformation();
+
+                // first tagged class to be used in the description text
+                $taggedClass = mb_strtolower(singleton($typeTaggedClasses[0])->singular_name());
             }
 
-            $checked                 = $this->SingleSelect;
+            // replace the scaffolded field with the new one
+            $fields->replaceField('SingleSelect', $singleSelectField);
+
+            // provide description for different combination of states from the lang file
             $singleSelectDescription = _t(
                 static::class
                 . '.SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '') . '_Description'
             );
-
-            $singleSelectField->setDescription(sprintf($singleSelectDescription, $objectName));
+            $singleSelectField->setDescription(sprintf($singleSelectDescription, $taggedClass));
         }
 
 
@@ -270,10 +265,6 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                         ->setDescription($sortDescription)
                 );
             }
-
-            // Set NameAsATag column casting
-            $childrenGrid->getConfig()->getComponentByType(GridFieldDataColumns::class)
-                ->setFieldCasting(['NameAsATag' => 'HTMLFragment->RAW']);
         }
 
 
@@ -295,9 +286,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                     ->removeComponentsByType(GridFieldDeleteAction::class)
                     ->removeComponentsByType(GridFieldAddExistingAutocompleter::class)
                     ->removeComponentsByType(GridFieldAddNewButton::class)
-                    ->getComponentByType(GridFieldDataColumns::class)
-                    // Cast NameAsATag to its HTML present
-                    ->setFieldCasting(['NameAsATag' => 'HTMLFragment->RAW']);
+                    ->getComponentByType(GridFieldDataColumns::class);
             }
 
             // Rename Tab Root.Terms, add description to this Terms GridField
@@ -333,12 +322,9 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             // the RequiredTypes for a TaxonomyTerm
             $dataColumns    = $config->getComponentByType(GridFieldDataColumns::class);
             $displayColumns = $dataColumns->getDisplayFields($gridRequiredTypes);
-            if (isset($displayColumns['RequiredTypeNames'])) {
-                unset($displayColumns['RequiredTypeNames']);
+            if (isset($displayColumns['getAllRequiredTypesNames'])) {
+                unset($displayColumns['getAllRequiredTypesNames']);
             }
-            $dataColumns->setDisplayFields($displayColumns)
-                // Cast NameAsATag to its HTML present
-                ->setFieldCasting(['NameAsATag' => 'HTMLFragment->RAW']);
 
             // Only make root terms available as RequiredTypes, disable to link the type itself as the RequiredTypes
             $searchList = self::get()->filter('ParentID', 0)->exclude('ID', $this->ID);
@@ -404,16 +390,16 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                 $taggedGridConf->getComponentByType(GridFieldDataColumns::class)
                     ->setDisplayFields(
                         [
-                            'ID'            => 'ID',
-                            'singular_name' => 'Object class name',
-                            'Title'         => 'Title',
-                            'LinkedThrough' => 'Relation',
-                            'CMSLink'       => 'Edit',
+                            'ID'               => 'ID',
+                            'singular_name'    => 'Data model (object type)',
+                            'Title'            => 'Title',
+                            'AT_LinkedThrough' => 'Relation',
+                            'AT_CMSLink'       => 'Edit',
                         ]
                     )
                     ->setFieldCasting(
                         [
-                            'CMSLink' => 'HTMLFragment->RAW',
+                            'AT_CMSLink' => 'HTMLFragment->RAW',
                         ]
                     );
 
@@ -435,48 +421,50 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
-     * When any TaxonomyTerms from this type is used to tag any DataObjects, return the terms found being used and
-     * the DataObject ClassName, the function will return when it found the first instance, rather then going through
-     * all possible sub classes. It will return an exmpty array if no terms found to be tagging to any DataObjects
+     * Find a list of data classes that have at least one instance tagged with a term of the current type
      *
-     * This function is called on a root Term currently
+     * This method is mostly used to determine if at least one term of the type has been used to tag an object,
+     * primarily driving the logic around SingleSelect — whether that attribute of a type can be still changed or not.
      *
      * @return array
      */
-    private function findOneDataObjectTagged()
+    public function getTypeTaggedClasses(bool $includeTypeItself = false): array
     {
-        // As $this is a root term, we could use $this->Terms() to get all terms from same tree here, but to make the
-        // function could be use by any non-root terms we use $this->Type()->Terms();
-        $terms = $this->Type()->Terms();
+        $typeTaggedClasses = [];
 
-        if ($terms && $terms->exists()) {
-            $termIDs = implode(',', $terms->column('ID'));
+        // Get all terms for this type, any level in the hierarchy
+        $typeTerms = self::get()->filter(['TypeID' => $this->TypeID]);
 
+        // include the type itself?
+        if ($includeTypeItself === false) {
+            $typeTerms = $typeTerms->exclude(['ID' => $this->TypeID]);
+        }
+
+        if (count($typeTerms)) {
+            // ManyManyThrough joining table
             $tableName = Config::inst()->get(DataObjectTaxonomyTerm::class, 'table_name');
 
             if (ClassInfo::hasTable($tableName)) {
-                $sql = sprintf(
-                    'SELECT count(1) as NumRecords, OwnerObjectClass FROM %s WHERE JointObjectID IN (%s) GROUP BY OwnerObjectClass',
-                    $tableName,
-                    $termIDs
-                );
+                // table exists
+                $termIDs            = $typeTerms->column('ID');
+                $termIDPlaceholders = DB::placeholders($termIDs);
 
-                $queryResult = DB::query($sql)->map();
-                if (count($queryResult)) {
-                    $numRecords  = array_key_first($queryResult);
-                    $class       = $queryResult[$numRecords];
-
-                    if ($numRecords > 0) {
-                        return [
-                            'objectType' => $class,
-                            'terms'      => implode('<br />', $terms->column('Name')),
-                        ];
-                    }
-                }
+                $typeTaggedClasses = SQLSelect::create(
+                    '"OwnerObjectClass", COUNT(1) as NumRecords',
+                    "\"{$tableName}\"",
+                    ["\"JointObjectID\" IN ($termIDPlaceholders)" => $termIDs], // where
+                    [], // order by
+                    ['"OwnerObjectClass"'], // group by
+                    ['COUNT("OwnerObjectClass") > 0'] // having
+                )->execute()->column('OwnerObjectClass');
             }
         }
 
-        return [];
+        // extension point to provide the same kind of functionality for custom tagging fields
+        // that are not based on the ManyManyThrough class this module provides
+        $this->extend('updateTypeTaggedClassesList', $typeTaggedClasses);
+
+        return $typeTaggedClasses;
     }
 
 
@@ -497,23 +485,24 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
-     * Set the "type" relationship for children to that of the parent (recursively)
-     * This guarantees that all nodes in this 'family' branch have the same reference to its root TaxonomyTerm
+     * Provide the SingleSelect flag for the taxonomy type
      *
-     * {@inheritDoc}
+     * @return bool
      */
-    public function onAfterWrite()
+    public function getIsSingleSelect(): bool
     {
-        parent::onAfterWrite();
+        return (bool) $this->Type()->getField('SingleSelect');
+    }
 
-        // Write the current term's type to all children
-        foreach ($this->Children() as $term) {
-            /** @var TaxonomyTerm $term */
-            $term->TypeID            = $this->TypeID;
-            $term->SingleSelect      = $this->SingleSelect;
-            $term->DisplayPreference = $this->DisplayPreference;
-            $term->write();
-        }
+
+    /**
+     * Provide the InternalOnly flag for the taxonomy type
+     *
+     * @return bool
+     */
+    public function getIsInternalOnly(): bool
+    {
+        return (bool) $this->Type()->getField('InternalOnly');
     }
 
 
@@ -527,41 +516,38 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     {
         parent::onBeforeWrite();
 
-        // Write the parent's type to the current term
         if ($this->Parent()->exists()) {
-            $this->TypeID            = $this->Parent()->TypeID;
-            $this->SingleSelect      = $this->Parent()->SingleSelect;
-            $this->DisplayPreference = $this->Parent()->DisplayPreference;
-        } else { // A root node, populate TypeID with its own ID
-            if ($this->ID) {
-                $this->TypeID = $this->ID;
-            }
+            // Write the parent's type to the current term (assumes the parent to be already written in the db)
+            $this->TypeID = $this->Parent()->TypeID;
+        } elseif ($this->ID) {
+            // A root node, populate TypeID with its own ID
+            $this->TypeID = $this->ID;
         }
 
-        if ($this->Name) {
-            if (!$this->Title) {
-                $this->Title = $this->Name;
-            }
+        if (!$this->Title && $this->Name) {
+            $this->Title = $this->Name;
+        }
 
-            if (!$this->TitlePlural) {
-                $this->TitlePlural = PluralGenerator::generate($this->Name);
-            }
+        if (!$this->TitlePlural && $this->Title) {
+            $this->TitlePlural = PluralGenerator::generate($this->Title);
+        }
 
-            if (!$this->URLSegment) {
+        if (!$this->URLSegment) {
+            if ($this->Name) {
                 $this->URLSegment = URLSegmentGenerator::generate(
                     $this->Name,
                     static::class,
                     $this->ID
                 );
-            } elseif ($this->isChanged('URLSegment', 2)) {
-                // Do a strict check on change level, to avoid double encoding caused by
-                // bogus changes through forceChange()
-                $this->URLSegment = URLSegmentGenerator::generate(
-                    $this->URLSegment,
-                    static::class,
-                    $this->ID
-                );
             }
+        } elseif ($this->isChanged('URLSegment', 2)) {
+            // Do a strict check on change level, to avoid double encoding caused by
+            // bogus changes through forceChange()
+            $this->URLSegment = URLSegmentGenerator::generate(
+                $this->URLSegment,
+                static::class,
+                $this->ID
+            );
         }
     }
 
@@ -675,68 +661,48 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
+     * Provide a legible term hierarchy with a customisable levels separator
+     *
+     * Optionally, a callback can be provided to be applied to each term before
+     * it's added to the list to be merged into a string.
+     *
      * Return formats:
-     * 1. "parentName > childName > grantChildName" if it is non-root term
-     * 2. "myName" if it is root term
+     * 1. "parentName ▸ childName ▸ grantChildName" if it is not a root term
+     * 2. "myName" if it is a root term
      *
      * @param string $separator
      * @return string
      */
-    public function getHierarchyDisplay($separator = ' ▸ ')
+    public function getTermHierarchy(string $separator = ' ▸ ', callable $termsDecorator = null)
     {
-        $crumbs = [];
+        // default decorator if none is provided
+        $plaintextDecorator = function (TaxonomyTerm $term) {
+            return sprintf('%s', $term->Name);
+        };
 
-        $ancestors = array_reverse($this->getAncestors()->toArray());
-        foreach ($ancestors as $ancestor) {
-            $crumbs[] = $ancestor->Name;
-        }
+        $termsDecorator = $termsDecorator ?: $plaintextDecorator;
 
-        $crumbs[] = $this->Name;
+        // hierarchy parts that will be joined together with the levels separator, decorated via a callback if defined
+        $parts = array_map($termsDecorator, array_reverse($this->getAncestors()->toArray()));
 
-        return implode($separator, $crumbs);
+        // add self as the last item
+        $parts[] = $termsDecorator($this);
+
+        return implode($separator, $parts);
     }
 
 
     /**
+     * Description limited to 15 words for limited spaces such as gridfields
+     *
      * @return string
      */
-    public function getDescriptionLimit15Words()
+    public function getDescription15Words()
     {
         $text = DBText::create('Description');
         $text->setValue($this->Description);
 
         return $text->LimitWordCount(15);
-    }
-
-
-    /**
-     * @param $type
-     * @param null $term
-     * @return DataList || ArrayList
-     */
-    public static function getByType($type, $term = null)
-    {
-        $terms = self::get();
-
-        $typeID = is_object($type) && $type->exists() ? $type->ID : (is_numeric($type) ? $type : null);
-        if ($typeID) {
-            $terms = $terms->filter('TypeID', $typeID);
-        }
-
-        $termID = is_object($term) && $term->exists() ? $term->ID : (is_numeric($term) ? $term : null);
-
-        if ($termID) {
-            $termList = ArrayList::create();
-            foreach ($terms as $termItem) {
-                if ($termItem->getTaxonomy()->ID === $termID) {
-                    $termList->add($termItem);
-                }
-            }
-
-            return $termList;
-        }
-
-        return $terms;
     }
 
 
@@ -750,21 +716,23 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     public static function getBySlug($slug, int $parentID = 0)
     {
         if (is_string($slug)) {
-            $slug = array_filter(explode('/', $slug), function ($item) { return strlen($item); });
+            $slug = array_filter(explode('/', $slug), function ($item) {
+                return mb_strlen($item);
+            });
         }
         if (!is_array($slug)) {
             throw new \RuntimeException('$slug must be a string or an array.');
         }
 
         $urlSegment = array_shift($slug);
-        $term = self::get()->filter(['ParentID' => $parentID, 'URLSegment' => $urlSegment])->first();
+        $term       = self::get()->filter(['ParentID' => $parentID, 'URLSegment' => $urlSegment])->first();
 
         if ($term && $term->exists()) {
             if (count($slug) === 0) {
                 return $term;
-            } else {
-                return self::getBySlug($slug, $term->ID); // use of static intentional to allow override
             }
+
+            return self::getBySlug($slug, $term->ID); // use of static intentional to allow override
         }
 
         return null;
@@ -775,88 +743,40 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
      * The function is to provide this taxonomy term presented like a 'tag' which is wrapped by special HTML tags with
      * some special classes
      *
-     * @return string
+     * @return DBHTMLText
      */
-    public function NameAsATag()
+    public function getNameAsTag()
     {
-        return '<span class="Select--multi"><span class="Select-value-label Select-value">'
-            . $this->Name . '</span></span>';
+        return DBField::create_field(
+            DBHTMLText::class,
+            (string) $this->renderWith('Chrometoaster\\AdvancedTaxonomies\\Term_Tag')
+        );
     }
 
 
     /**
-     * The function is to provide this taxonomy term presented in a well formatted way:
-     * 1. The name are being formatted like a 'tag' which is wrapped by special HTML tags with some special classes
-     * 2. It's other information is also added to this presentation but as tooltips, since the presentation is
-     *    to be shown as GridField columns' value, i.e. inside a table cell, the space holding this presentation is
-     *    limited.
+     * Provide term name as a tag with additional term info
      *
-     * @return string
+     * Additional information is added to the presentation as tooltip, allowing for the information to be
+     * presented also e.g. in GridField columns, where the space is limited.
+     *
+     * @return DBHTMLText
      */
-    public function getTagName()
+    public function getNameAsTagWithExtraInfo(): DBHTMLText
     {
-        $lineBreaks = '<br><br>';
-        $bTagOpen   = '<b>';
-        $bTagClose  = '</b>';
-
-        $authoringDefinition = $this->AuthorDefinition ? $this->AuthorDefinition : null;
-        $hierarchy           = $this->getHierarchyDisplay();
-
-        $typeInfo = $this->TypeNameWithFlagAttributes();
-
-        // We want two line breaks if the term's AuthorDefinition is defined
-        $tooltipText = '';
-        if ($authoringDefinition) {
-            $tooltipText .= $authoringDefinition . $lineBreaks;
-        }
-
-        // Show the term's hierarchy information
-        $tooltipText .= $bTagOpen . 'Taxonomy' . $bTagClose . ': ' . $hierarchy;
-
-        // Show the term's information on 'Display name singular'
-        if ($this->Title) {
-            $tooltipText .= $lineBreaks . $bTagOpen . 'Singular' . $bTagClose . ': ' . $this->Title;
-        }
-
-        // Show the term's information on 'Display name plural'
-        if ($this->TitlePlural) {
-            $tooltipText .= $lineBreaks . $bTagOpen . 'Plural' . $bTagClose . ': ' . $this->TitlePlural;
-        }
-
-        // Show the term's information on 'Type' and Type's logic attribute, i.e. which root term it belongs to,
-        // it is Multi or Single
-        if ($typeInfo) {
-            $tooltipText .= $lineBreaks . $bTagOpen . 'Type' . $bTagClose . ': ' . $typeInfo;
-        }
-
-        // Overall required types, i.e. computed from tag's required types, the root term's required types
-        // using the logic setting flag 'RequiredTypesInheritRoot'
-        if ($types = $this->RequiredTypesOverall()) {
-            if ($types && $types->exists()) {
-                $tooltipText .= $lineBreaks . $bTagOpen . 'Required taxonomies' . $bTagClose . ': '
-                        . implode(', ', $types->column('Name'));
-            }
-        }
-
-        $tagNameFormat = <<<HTML
-<span class="Select--multi">
-    <span class="Select-value-label Select-value with-tooltip">
-        %s<span class="at-tooltip">%s</span>
-     </span>
-</span>
-HTML;
-
-        return sprintf($tagNameFormat, $this->Name, $tooltipText);
+        return DBField::create_field(
+            DBHTMLText::class,
+            (string) $this->customise(['ShowTermExtraInfo' => true])->renderWith('Chrometoaster\\AdvancedTaxonomies\\Term_Tag')
+        );
     }
 
 
     /**
-     * This is to render the type's Name with its SingleSelect and DisplayPreference attributes, used to give more
-     * information in a GridField column for showing TaxonomyTerm
+     * Get taxonomy type name with its SingleSelect and InternalOnly attributes
      *
-     * @return string|null
+     * @return string
      */
-    public function TypeNameWithFlagAttributes()
+    public function getTypeNameWithFlags(): string
     {
         if ($this->exists() && $this->Type()->exists()) {
             $type  = $this->Type();
@@ -865,58 +785,91 @@ HTML;
             return $title
                 . ' ('
                 . ($type->SingleSelect ? 'Single' : 'Multi')
-                . ($type->DisplayPreference ? '; Shown' : '; Hidden')
+                . ($type->InternalOnly ? '; Internal only' : '; Public')
                 . ')';
         }
 
-        return null;
+        return '';
     }
 
 
     /**
-     * As RequiredTypesInheritRoot flag and RequiredTypes many_many relation exists in  any level of term nodes in a
-     * hierarchical tree, the RequiredTypes can be customised per term node. This function is 'calculated' result as
-     * RequiredTypes for each term node, the logic is:
-     * If RequiredTypesInheritRoot is true (default value), the conjunction of both root's RequiredTypes and the current
-     * node's RequiredTypes; if it is false, ignore the root's RequiredTypes.
+     * Collate all required types for a term
+     *
+     * As RequiredTypesInheritRoot flag and RequiredTypes many_many relation exist on any level of the hierarchy,
+     * the RequiredTypes can be customised per term.
+     *
+     * This function calculating the result (a list of required types) for each term following this logic:
+     * - if the RequiredTypesInheritRoot flag is true (default value), it produces the conjunction of both the root
+     *   term's RequiredTypes and the current term's RequiredTypes
+     * - if the RequiredTypesInheritRoot flag is false, it ignores the root term's RequiredTypes value.
      *
      * @return DataList
      */
-    public function RequiredTypesOverall()
+    public function getAllRequiredTypes(): DataList
     {
         if (!$this->RequiredTypesInheritRoot) {
             return $this->RequiredTypes();
         }
-        $rootRequiredTypesIDs = $this->Type()->RequiredTypes()->column('ID');
-        $localRequiredTypes   = $this->RequiredTypes()->column('ID');
-        if (!empty($rootRequiredTypesIDs) || !empty($localRequiredTypes)) {
-            return self::get()
-                    ->filterAny('ID', array_merge($rootRequiredTypesIDs, $localRequiredTypes));
+
+        // get a unique list of required type IDs
+        $termRequiredTypeIDs = array_unique(
+            array_merge(
+                $this->Type()->RequiredTypes()->column('ID'),
+                $this->RequiredTypes()->column('ID')
+            )
+        );
+
+        if (count($termRequiredTypeIDs)) {
+            return self::get()->filterAny('ID', $termRequiredTypeIDs);
         }
+
+        return self::get()->filter('ID', -9999); // arbitrary ID of a non-existing term to return an empty DataList
     }
 
 
     /**
-     * The function is used to provide column 'Required types` in GridField a nice presentation of required types per
-     * TaxonomyTerm
+     * Get a list of names for all term's required types
      *
+     * The output is used in a grio field for a nicer presentation of all the required types per taxonomy term.
+     * Optional delimiter can be specified, default is a line break tag.
+     *
+     * DBHTMLText class is used to produce a nicely formatted message leveraging the HTMLFragment->RAW column casting.
+     *
+     * @param string $delimiter
      * @return DBHTMLText
      */
-    public function RequiredTypeNames()
+    public function getAllRequiredTypesNames(string $delimiter = '<br />'): DBHTMLText
     {
-        $names = [];
-        if ($types = $this->RequiredTypesOverall()) {
-            foreach ($this->RequiredTypesOverall() as $type) {
-                $names[] = $type->Name;
+        $names = $this->getAllRequiredTypes()->column('Name');
+
+        return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
+    }
+
+
+    /**
+     * Get a list of types with the single select flag on, optionally based on a list of terms
+     *
+     * @param SS_List|null $terms
+     * @return DataList
+     */
+    public static function getSingleSelectOnlyTypes(SS_List $terms = null): DataList
+    {
+        $singleSelectTypes = self::get()->filter(['ParentID' => 0, 'SingleSelect' => true]);
+
+        if ($terms) {
+            $termsTypeIDs = array_unique($terms->column('TypeID'));
+            if (count($termsTypeIDs)) {
+                // a narrow down list of types based on the list of terms provided
+                return $singleSelectTypes->filterAny('ID', $termsTypeIDs);
             }
+
+            // filtered list with no candidates
+            return self::get()->filter('ID', -9999); // arbitrary ID of a non-existing term to return an empty DataList
         }
 
-        // Make the output as DBHTMLText to achieve better style by using HTMLFragment->RAW column casting
-        $namesHTML = implode('<br />', $names);
-        $output    = DBHTMLText::create();
-        $output->setValue($namesHTML);
-
-        return $output;
+        // all single select types non-filtered
+        return $singleSelectTypes;
     }
 
 
@@ -973,128 +926,192 @@ HTML;
 
 
     /**
-     * @throws \ReflectionException
-     * @return ArrayList
+     * Add extra info to a tagged object item for display purposes in the listing gridfield
+     *
+     * @param DataObject $item
+     * @param string $field
+     * @param string $relation
+     * @return ViewableData
      */
-    protected function getTaggedDataObjects()
+    private static function decorateTaggedDataObject(DataObject $item, string $field, string $relation): ViewableData
     {
-        $termID = $this->ID;
+        $cmsLink = '';
+        if ($item->hasMethod('CMSEditLink')) {
+            $cmsLink = sprintf('<a href="%s" target="_blank" class="at-link-external">Edit</a>', $item->CMSEditLink());
+        }
 
-        $list = ArrayList::create();
+        $item->AT_UniqueID      = sprintf('%s-%s-%s-%s', $item->ClassName, $item->ID, $field, $relation);
+        $item->AT_LinkedThrough = sprintf('%s (%s)', $field, $relation);
+        $item->AT_CMSLink       = $cmsLink;
 
+        return $item;
+    }
+
+
+    /**
+     * Get a list of many_many_through mapping objects for classes where the 'to' relation is TaxonomyTerm
+     *
+     * The output is in the form of
+     *
+     * list of mapping classes -> list of classes using this mapping -> mapping details
+     *
+     * 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm' => [
+     *     'Page.Tags' => [
+     *          'RelationName'      => 'Tags',
+     *          'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
+     *          'GetOwnerFuncName'  => 'OwnerObject',
+     *     ],
+     *     'SilverStripe\Assets\File.Tags' => [
+     *        'RelationName'      => 'Tags',
+     *        'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
+     *        'GetOwnerFuncName'  => 'OwnerObject',
+     *     ],
+     * ],
+     * 'SomeNameSpace\MyObjectClassName' => [
+     *     'Page.AnotherManyManyRelation' => [
+     *          'RelationName'      => 'AnotherManyManyRelation',
+     *          'BridgingClassName' => 'SomeNameSpace\MyObjectClassName',
+     *          'GetOwnerFuncName'  => 'Origin',
+     *     ],
+     * ],
+     *
+     * TODO: consider local caching
+     */
+    private static function getManyManyThroughMappingClasses()
+    {
+        $mapping = [];
+
+        // consider all subclasses of DataObject
         $classes = ClassInfo::subclassesFor(DataObject::class);
 
-        /**
-         * This will store a OwnerClassName.RelationName to bridging defination mapping when the BridgingObject's `to` is pointing to
-         * TaxonomyTerm, e.g.
-         * 'Page.Tags' => [
-         *      'RelationName'      => 'Tags',
-         *      'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
-         *      'GetOwnerFuncName'  => 'OwnerObject',
-         * ],
-         * 'Page.AnotherManyManyRelation' => [
-         *      'RelationName'      => 'AnotherManyManyRelation',
-         *      'BridgingClassName' => 'SomeNameSpace\MyObjectClassName',
-         *      'GetOwnerFuncName'  => 'Origin',
-         * ],
-         * 'SilverStripe\Assets\File.Tags' => [
-         *      'RelationName'      => 'Tags',
-         *      'BridgingClassName' => 'Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm',
-         *      'GetOwnerFuncName'  => 'OwnerObject',
-         * ],
-         */
-        $bridging = [];
+        /** @var DataObjectSchema $dbSchema */
+        $dbSchema = DataObject::getSchema();
+
         foreach ($classes as $class) {
-            $relationCandidates = Config::inst()->get($class, 'many_many');
-            if (count($relationCandidates)) {
-                foreach ($relationCandidates as $field => $fieldType) {
-                    if (is_array($fieldType) && isset($fieldType['through']) && isset($fieldType['to']) && isset($fieldType['from'])) {
-                        // For bridging object, we only need to check has_one and the 'to' target is TaxonomyTerm
-                        $bridgeObjectClassName    = $fieldType['through'];
-                        $targetObjectRelationName = $fieldType['to'];
-                        $bridgeDefinition         = Config::inst()->get($bridgeObjectClassName, 'has_one');
-                        if (isset($bridgeDefinition[$targetObjectRelationName])
-                            && $bridgeDefinition[$targetObjectRelationName] === self::class) {
-                            $bridging[$class . '.' . $field] = [
-                                'RelationName'      => $field,
-                                'BridgingClassName' => $fieldType['through'],
-                                'GetOwnerFuncName'  => $fieldType['from'],
-                            ];
-                        }
+            $manyMany = (array) Config::inst()->get($class, 'many_many');
+
+            foreach ($manyMany as $field => $fieldType) {
+                if (
+                    is_array($fieldType)
+                    && array_key_exists('through', $fieldType)
+                    && array_key_exists('from', $fieldType)
+                    && array_key_exists('to', $fieldType)
+                    // to TaxonomyTerm class?
+                    && $dbSchema->hasOneComponent($fieldType['through'], $fieldType['to']) === self::class
+                ) {
+                    $throughClass = $fieldType['through'];
+                    if (!array_key_exists($throughClass, $mapping)) {
+                        $mapping[$throughClass] = [];
                     }
+
+                    $mapping[$throughClass][$class . '.' . $field] = [
+                        'relation'      => $field,
+                        'ownerClass'    => $class,
+                        'ownerAccessor' => $fieldType['from'],
+                    ];
                 }
             }
         }
 
-        $relations = ['has_one', 'has_many', 'many_many'];
-        foreach ($classes as $class) {
+        return $mapping;
+    }
 
+
+    /**
+     * Get a list of all objects tagged with this taxonomy term
+     *
+     * @throws \ReflectionException
+     * @return ArrayList
+     */
+    public function getTaggedDataObjects(): ArrayList
+    {
+        $list       = ArrayList::create();
+        $classes    = ClassInfo::subclassesFor(DataObject::class);
+        $mmtMapping = self::getManyManyThroughMappingClasses();
+
+        foreach ($classes as $class) {
             // Exclude TaxonomyTerm and its subclasses from being the candidates to checked ralations, for the cases
             // such as, terms are assigned to terms via hierarchy, etc
             if (is_a($class, self::class, true)) {
                 continue;
             }
 
-            foreach ($relations as $relation) {
-                $relationCandidates = Config::inst()->get($class, $relation);
-                if (count($relationCandidates)) {
-                    foreach ($relationCandidates as $field => $fieldType) {
-                        if ($fieldType === self::class) {
-                            $filterField = $field . ($relation === 'has_one' ? '' : '.') . 'ID';
-                            $items       = DataObject::get($class)->filter($filterField, $termID);
+            foreach (['has_one', 'has_many', 'many_many'] as $relation) {
+                $relationCandidates = (array) Config::inst()->get($class, $relation);
 
-                            $items->each(function ($item) use ($list, $field, $relation, $bridging) {
-                                $isBridgingObject = false;
-                                foreach ($bridging as $ownerClassRelationName => $bridgingDefination) {
-                                    if ($item->ClassName === $bridgingDefination['BridgingClassName']) {
-                                        $owner = $item->{$bridgingDefination['GetOwnerFuncName']}();
-                                        $fieldName = $bridgingDefination['RelationName'];
+                foreach ($relationCandidates as $field => $fieldType) {
+                    if ($fieldType === self::class) {
+
+                        // db field to filter on — FieldNameID for has_one, or FieldName.ID for composite relations
+                        $filterField = $field . ($relation === 'has_one' ? '' : '.') . 'ID';
+
+                        $items = DataObject::get($class)->filter($filterField, $this->ID);
+
+                        // TODO: find out how to get the mapped class to match
+                        $items->each(function ($item) use ($list, $field, $relation, $mmtMapping) {
+                            // special treatment of relations that form many_many_through mappings
+                            if (array_key_exists($item->ClassName, $mmtMapping)) {
+                                $mmtMaps = $mmtMapping[$item->ClassName]; //[sprintf('%s.%s', $item->class, $field)];
+
+                                foreach ($mmtMaps as $mmtMap) {
+                                    $owner = $item->{$mmtMap['ownerAccessor']}();
+                                    if ($owner && $owner->exists() && $owner->ClassName === $mmtMap['ownerClass']) {
+                                        $fieldName = $mmtMap['relation'];
                                         $relationName = 'many_many_through';
-                                        $isBridgingObject = true;
 
                                         break;
                                     }
+                                    $owner = null;
                                 }
-                                if (!$isBridgingObject) {
-                                    $owner = $item;
-                                    $fieldName = $field;
-                                    $relationName = $relation;
-                                }
+                            } else {
+                                $owner = $item;
+                                $fieldName = $field;
+                                $relationName = $relation;
+                            }
 
-                                $cmsLink = '';
-                                if ($owner->hasMethod('CMSEditLink')) {
-                                    $cmsLink = $owner->CMSEditLink();
-                                }
-
-                                if ($cmsLink) {
-                                    $cmsLink
-                                        = sprintf(
-                                            '<a href="%s" target="_blank" class="at-link-external">Edit</a>',
-                                            $cmsLink
-                                        );
-                                }
-
-                                $owner->UniqueID = sprintf(
-                                    '%s-%s-%s-%s',
-                                    $owner->ClassName,
-                                    $owner->ID,
-                                    $fieldName,
-                                    $relationName
-                                );
-                                $owner->LinkedThrough = sprintf('%s (%s)', $fieldName, $relationName);
-                                $owner->CMSLink = $cmsLink;
-
-                                $list->push($owner);
-                            });
-                        }
+                            $list->push(self::decorateTaggedDataObject($owner, $fieldName, $relationName));
+                        });
                     }
                 }
             }
         }
 
         // Remove duplicates
-        $list->removeDuplicates('UniqueID');
+        $list->removeDuplicates('AT_UniqueID');
 
         return $list;
+    }
+
+
+    /*
+     * Get a ModelAdmin edit link with an optional landing tab name
+     *
+     * Creates a link to {@link Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin} with a landing tab
+     * name attached to the link as a hash, to select that particular tab. This may not always work due to bugs in SS.
+     *
+     * @param TaxonomyTerm $tag
+     * @param string $landingTab
+     * @return mixed|string
+     */
+    public function getModelAdminEditLink(string $landingTab = 'Root_Main')
+    {
+        $admin             = singleton(TaxonomyModelAdmin::class);
+        $admin->modelClass = self::class;
+        $admin->init();
+        $gridFieldName = str_replace('\\', '-', self::class);
+        $gridField     = $admin->getEditForm()->Fields()->dataFieldByName($gridFieldName);
+        $linkedURL     = $gridField->Link();
+
+        $subURL = [];
+        $node   = $this;
+        while ($node->ParentID) {
+            $subURL[] = 'ItemEditForm/field/Children/item/' . $node->ID . '/';
+            $node     = $node->Parent();
+        }
+        $subURL[] = '/item/' . $node->ID . '/';
+
+        $termEditURL = $linkedURL . rtrim(implode('', array_reverse($subURL)), '/') . '/edit?#' . $landingTab;
+
+        return sprintf('<a href="%s" target="_blank" class="at-link-external">%s</a>', $termEditURL, $this->Name);
     }
 }
