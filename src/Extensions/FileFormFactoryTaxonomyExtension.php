@@ -57,7 +57,7 @@ class FileFormFactoryTaxonomyExtension extends Extension
 
                 $taxonomiesOverviewLink = LiteralField::create(
                     'TaxonomiesOverviewLink',
-                    '<a href="/at-taxonomies-overview" target="_blank" class="at-link-external">Open \'All taxonomies\' overview</a>'
+                    '<a href="/at-taxonomy-overview" target="_blank" class="at-link-external">Open \'All taxonomies\' overview</a>'
                 );
 
                 $fields->addFieldsToTab('Editor.Tags', [
