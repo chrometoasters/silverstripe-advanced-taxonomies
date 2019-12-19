@@ -95,7 +95,7 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         // create a list of term candidates, excluding single select types which already have a tag in the list
         // - this works in real time as adding a tag adds it to the list, even when unsaved
         $searchList          = DataList::create(TaxonomyTerm::class);
-        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags());
+        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags())->column('ID');
         if (!empty($singleSelectTypeIDs)) {
             $searchList = $searchList->exclude('TypeID', $singleSelectTypeIDs);
         }
