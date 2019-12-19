@@ -5,6 +5,10 @@ SilverStripe\Admin\ModelAdmin:
   extensions:
     - Chrometoaster\AdvancedTaxonomies\Extensions\TaxonomyModelAdminExtension
 
+SilverStripe\Control\Director:
+  rules:
+    at-taxonomy-overview: Chrometoaster\AdvancedTaxonomies\Controllers\TaxonomyOverviewController
+
 ---
 Only:
   moduleexists: 'silverstripe/cms'

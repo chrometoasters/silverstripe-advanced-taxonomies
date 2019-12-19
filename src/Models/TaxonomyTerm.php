@@ -31,6 +31,7 @@ use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Versioned\GridFieldArchiveAction;
+use SilverStripe\View\ArrayData;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**
@@ -694,6 +695,44 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         $crumbs[] = $this->Name;
 
         return implode($separator, $crumbs);
+    }
+
+
+    /**
+     * Get term depth in the hierarchy
+     *
+     * @param bool $asArrayList
+     * @return int
+     */
+    public function getTermLevel(): int
+    {
+        $level = 0;
+        $term  = $this;
+
+        while ($term->ParentID) {
+            $level++;
+            $term = $term->Parent();
+        }
+
+        return $level;
+    }
+
+
+    /**
+     * Get a list of dummy position indicators for use in templates
+     * to e.g. indent terms or so
+     *
+     * @return ArrayList
+     */
+    public function getTermLevelList(): ArrayList
+    {
+        $list = ArrayList::create([]);
+
+        for ($i = 0; $i < $this->getTermLevel(); $i++) {
+            $list->push(ArrayData::create(['Pos' => $i]));
+        }
+
+        return $list;
     }
 
 

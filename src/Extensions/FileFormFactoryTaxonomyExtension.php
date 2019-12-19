@@ -8,6 +8,7 @@ use SilverStripe\AssetAdmin\Forms\AssetFormFactory;
 use SilverStripe\Assets\Folder;
 use SilverStripe\Core\Extension;
 use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\Tab;
 use SilverStripe\Forms\TreeMultiselectField;
 
@@ -50,10 +51,15 @@ class FileFormFactoryTaxonomyExtension extends Extension
                     ->setEmptyString('Add tags by name')
                     ->setShowSearch(true);
 
-                $fields->addFieldToTab(
-                    'Editor.Tags',
-                    $tags
+                $taxonomiesOverviewLink = LiteralField::create(
+                    'TaxonomiesOverviewLink',
+                    '<a href="/at-taxonomies-overview" target="_blank" class="at-link-external">Open \'All taxonomies\' overview</a>'
                 );
+
+                $fields->addFieldsToTab('Editor.Tags', [
+                    $tags,
+                    $taxonomiesOverviewLink,
+                ]);
             }
         }
     }
