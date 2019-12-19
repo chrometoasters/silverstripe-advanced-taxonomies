@@ -3,6 +3,7 @@
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldInfoLink;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
@@ -76,6 +77,10 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         $components->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
         $components->addComponent(
             $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left')
+        );
+
+        $components->addComponent(
+            new GridFieldInfoLink('buttons-before-left', '/at-taxonomy-overview', "Open 'All taxonomies' overview")
         );
 
         $components->getComponentByType(GridFieldDataColumns::class)->setDisplayFields(
