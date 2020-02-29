@@ -1108,7 +1108,9 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                                 $relationName = $relation;
                             }
 
-                            $list->push(self::decorateTaggedDataObject($owner, $fieldName, $relationName));
+                            if ($owner && $owner->exists()) {
+                                $list->push(self::decorateTaggedDataObject($owner, $fieldName, $relationName));
+                            }
                         });
                     }
                 }
