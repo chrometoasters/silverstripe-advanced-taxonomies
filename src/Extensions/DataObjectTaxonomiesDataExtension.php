@@ -2,6 +2,7 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
+use Chrometoaster\AdvancedTaxonomies\Forms\FieldsProvider;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldInfoLink;
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
@@ -61,48 +62,19 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
             return;
         }
 
-        // Remove config components from the Tags gridfield to disallow adding/deleting/archiving taxonomy terms from here
-        $components = GridFieldConfig_RelationEditor::create();
-        $components->removeComponentsByType(GridFieldAddNewButton::class);
-        $components->removeComponentsByType(GridFieldEditButton::class);
-        $components->removeComponentsByType(GridFieldArchiveAction::class);
-        $components->removeComponentsByType(GridFieldFilterHeader::class);
-
-        // Shift the GridFieldAddExistingAutocompleter component to left
-        $components->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
-        $components->addComponent(
-            $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left')
-        );
-
-        $components->addComponent(
-            new GridFieldInfoLink('buttons-before-left', '/at-taxonomy-overview', "Open 'All taxonomies' overview")
-        );
-
-        $components->getComponentByType(GridFieldDataColumns::class)->setDisplayFields(
-            [
-                'getNameAsTagWithExtraInfo' => 'Name',
-                'getDescription15Words'     => 'Description',
-                'getAllRequiredTypesNames'  => 'Requires',
-            ]
-        );
-
-        $components->addComponent(GridFieldOrderableRows::create('Sort'));
-
-        $autoResultFormat = '&nbsp;{$getTermHierarchy}&nbsp;';
-        $addExisting->setResultsFormat($autoResultFormat);
-        $addExisting->setPlaceholderText('Add tags by name');
-
-        // create a list of term candidates, excluding single select types which already have a tag in the list
-        // - this works in real time as adding a tag adds it to the list, even when unsaved
+        // a list of candidates for the add existing search field
+        // - excluding single select types which already have a tag in the list
+        // - this works in real time as adding a tag adds it to the list, even when the relation is unsaved
         $searchList          = DataList::create(TaxonomyTerm::class);
         $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags())->column('ID');
         if (!empty($singleSelectTypeIDs)) {
             $searchList = $searchList->exclude('TypeID', $singleSelectTypeIDs);
         }
-        // TODO: find-out why the following sorting doesn't effect in the real time.
-        //        $searchList = $searchList->sort(['TypeID'=>'ASC', 'Name' => 'ASC']);
-        //        TaxonomyTerm::config()->update('default_sort', ['TypeID'=>'ASC', 'Name' => 'ASC']);
-        $addExisting->setSearchList($searchList);
+
+        $gridFieldConfig = FieldsProvider::getTaggingGridFieldConfig(
+            $searchList,
+            ['getAllRequiredTypesNames'  => 'Requires']
+        );
 
         $fields->findOrMakeTab('Root.Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
         $fields->addFieldToTab(
@@ -111,7 +83,7 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
                 'Tags',
                 _t(self::class . '.ManyManyTags', 'Tags'),
                 $this->getOwner()->Tags(),
-                $components
+                $gridFieldConfig
             )
         );
 
