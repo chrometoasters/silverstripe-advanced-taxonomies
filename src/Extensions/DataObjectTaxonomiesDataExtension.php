@@ -3,9 +3,6 @@
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\FieldsProvider;
-use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
-use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldInfoLink;
-use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;

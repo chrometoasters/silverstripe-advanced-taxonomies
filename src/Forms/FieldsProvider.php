@@ -3,6 +3,9 @@
 namespace Chrometoaster\AdvancedTaxonomies\Forms;
 
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldInfoLink;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
 use SilverStripe\Forms\GridField\GridFieldConfig;
