@@ -193,6 +193,6 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
      */
     public function getDisplayableTags()
     {
-        return $this->getOwner()->Tags()->filter('InternalOnly', false);
+        return $this->getOwner()->Tags()->filter(['Type.InternalOnly' => false]);
     }
 }
