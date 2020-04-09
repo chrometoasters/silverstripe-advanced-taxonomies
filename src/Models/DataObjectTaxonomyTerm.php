@@ -37,13 +37,13 @@ class DataObjectTaxonomyTerm extends DataObject
     /**
      * Make sure the linking object is unpublished from Live stage before deleting it from Draft stage.
      */
-    public function onAfterDelete()
+    public function onBeforeDelete()
     {
+        parent::onBeforeDelete();
         if ($this->hasExtension(Versioned::class)) {
             if ($this->canUnpublish()) {
                 $this->doUnpublish();
             }
         }
-        parent::onAfterDelete();
     }
 }
