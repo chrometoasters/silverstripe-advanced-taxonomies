@@ -35,17 +35,12 @@ class DataObjectTaxonomyTerm extends DataObject
 
 
     /**
-     * Though this object is used to link {@see DataObject} and {@see TaxonomyTerm} in a many-many relation, the
-     * object itself is manipulated as a data object and is {@see Versioned} by default, it could be published by its
-     * owner object through the static $owns {@see DataObjectTaxonomiesDataExtension::$owns} defined. On an operation
-     * of deleting this object trigged by 'unlink' on its owner's interface, this object is removed only from its
-     * Staging stage, whereas leaves its published record as an orphaned record. The function is to ensure the object's
-     * published record is also removed to maintains data integrity.
+     * Make sure the linking object is unpublished from Live stage before deleting it from Draft stage.
      */
     public function onAfterDelete()
     {
         if ($this->hasExtension(Versioned::class)) {
-            if ($this->isPublished()) {
+            if ($this->canUnpublish()) {
                 $this->doUnpublish();
             }
         }
