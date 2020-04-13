@@ -8,6 +8,7 @@ use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Dev\BuildTask;
+use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectSchema;
 use SilverStripe\ORM\DB;
@@ -30,6 +31,7 @@ use SilverStripe\Versioned\Versioned;
  *
  * Run the task:   sake dev/tasks/at-remove-orphaned-tag-relation-objects
  *
+ * @deprecated 3.2.0:4.0.0 Will be removed in 4.0 as underlying issue has been fixed.
  */
 class RemoveOrphanedTagRelationObjectsTask extends BuildTask
 {
@@ -45,6 +47,8 @@ class RemoveOrphanedTagRelationObjectsTask extends BuildTask
      */
     public function run($request)
     {
+        Deprecation::notice('3.2', 'This task will be removed in version 4.0 as the underlying issue has been fixed.');
+
         $this->removeTagRelationObjectsWithDeletedTerm();
 
         $this->removeTagRelationObjectsWithDeletedOwner();
