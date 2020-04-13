@@ -42,8 +42,10 @@ class DataObjectTaxonomyTerm extends DataObject
         parent::onBeforeDelete();
 
         if ($this->hasExtension(Versioned::class)) {
-            if ($this->canUnpublish()) {
-                $this->doUnpublish();
+            if (Versioned::get_stage() === Versioned::DRAFT) {
+                if ($this->canUnpublish()) {
+                    $this->doUnpublish();
+                }
             }
         }
     }
