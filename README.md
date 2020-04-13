@@ -109,7 +109,7 @@ $validator->setHTMLOutput(false);
 // get the validation error or empty string
 $requiredTypesValidationError = $validator->validateRequiredTypes($this->getOwner()->Tags());
 
-// use the validation message futher
+// use the validation message further
 // ...
 ```
 
