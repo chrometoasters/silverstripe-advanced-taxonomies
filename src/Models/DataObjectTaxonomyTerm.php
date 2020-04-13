@@ -32,4 +32,19 @@ class DataObjectTaxonomyTerm extends DataObject
     private static $extensions = [
         Versioned::class,
     ];
+
+
+    /**
+     * Make sure the linking object is unpublished from Live stage before deleting it from Draft stage.
+     */
+    public function onBeforeDelete()
+    {
+        parent::onBeforeDelete();
+
+        if ($this->hasExtension(Versioned::class)) {
+            if ($this->canUnpublish()) {
+                $this->doUnpublish();
+            }
+        }
+    }
 }
