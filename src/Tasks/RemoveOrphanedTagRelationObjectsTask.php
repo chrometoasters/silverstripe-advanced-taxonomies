@@ -47,8 +47,6 @@ class RemoveOrphanedTagRelationObjectsTask extends BuildTask
      */
     public function run($request)
     {
-        Deprecation::notice('3.2', 'This task will be removed in version 4.0 as the underlying issue has been fixed.');
-
         $this->removeTagRelationObjectsWithDeletedTerm();
 
         $this->removeTagRelationObjectsWithDeletedOwner();
