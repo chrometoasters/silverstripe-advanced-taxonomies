@@ -38,9 +38,6 @@ class FileFormFactoryTaxonomyExtension extends Extension
             $record = $context['Record'];
 
             if (!is_a($record, Folder::class)) {
-                if ($formName === 'fileEditForm') {
-                }
-
                 $tags = TreeMultiselectField::create(
                     'Tags',
                     _t(self::class . '.Tags', 'Tags'),
