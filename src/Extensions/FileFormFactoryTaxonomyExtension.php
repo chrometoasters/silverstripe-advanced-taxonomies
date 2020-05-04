@@ -39,11 +39,6 @@ class FileFormFactoryTaxonomyExtension extends Extension
 
             if (!is_a($record, Folder::class)) {
                 if ($formName === 'fileEditForm') {
-                    // Avoid using $fields->findOrMakeTab() so the tab "Tags" is added right after the first tab "Details"
-                    $editorTabSet = $fields->fieldByName('Editor');
-                    $tagsTab      = Tab::create('Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
-
-                    $editorTabSet->insertAfter('Details', $tagsTab);
                 }
 
                 $tags = TreeMultiselectField::create(
@@ -61,14 +56,19 @@ class FileFormFactoryTaxonomyExtension extends Extension
                     'TaxonomiesOverviewLink',
                     '<a href="/at-taxonomy-overview" target="_blank" class="at-link-external">Open \'All taxonomies\' overview</a>'
                 );
+
+                // list of fields that can be used both for the edit form as well as the history view
+                $atFormFields = [$tags, $taxonomiesOverviewLink];
+
                 if ($formName === 'fileEditForm') {
-                    $fields->addFieldsToTab('Editor.Tags', [
-                        $tags,
-                        $taxonomiesOverviewLink,
-                    ]);
+                    // Avoid using $fields->findOrMakeTab() so the tab "Tags" is added right after the first tab "Details"
+                    $editorTabSet = $fields->fieldByName('Editor');
+                    $tagsTab      = Tab::create('Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
+                    $editorTabSet->insertAfter('Details', $tagsTab);
+
+                    $tagsTab->getChildren()->merge($atFormFields);
                 } else {
-                    $fields->push($tags);
-                    $fields->push($taxonomiesOverviewLink);
+                    $fields->merge($atFormFields);
                 }
             }
         }
