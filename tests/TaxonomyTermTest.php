@@ -6,7 +6,6 @@ use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\Dev\SapphireTest;
-use SilverStripe\ORM\ManyManyThroughList;
 use SilverStripe\ORM\ValidationException;
 use SilverStripe\Versioned\Versioned;
 
@@ -587,5 +586,4 @@ class TaxonomyTermTest extends SapphireTest
             'tagForTaggedObjects should show one tagged objects after a tag removal'
         );
     }
-
 }

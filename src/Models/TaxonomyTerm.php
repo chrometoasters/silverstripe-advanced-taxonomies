@@ -36,8 +36,8 @@ use SilverStripe\ORM\SS_List;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Versioned\GridFieldArchiveAction;
-use SilverStripe\View\ViewableData;
 use SilverStripe\View\ArrayData;
+use SilverStripe\View\ViewableData;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**

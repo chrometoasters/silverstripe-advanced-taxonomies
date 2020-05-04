@@ -8,7 +8,6 @@ use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Dev\BuildTask;
-use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectSchema;
 use SilverStripe\ORM\DB;
