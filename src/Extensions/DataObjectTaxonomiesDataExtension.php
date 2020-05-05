@@ -8,18 +8,11 @@ use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
-use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
-use SilverStripe\Forms\GridField\GridFieldAddNewButton;
-use SilverStripe\Forms\GridField\GridFieldConfig_RelationEditor;
-use SilverStripe\Forms\GridField\GridFieldDataColumns;
-use SilverStripe\Forms\GridField\GridFieldEditButton;
-use SilverStripe\Forms\GridField\GridFieldFilterHeader;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBHTMLText;
-use SilverStripe\Versioned\GridFieldArchiveAction;
 
 /**
  * Class DataObjectTaxonomiesDataExtension
@@ -70,7 +63,7 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
 
         $gridFieldConfig = FieldsProvider::getTaggingGridFieldConfig(
             $searchList,
-            ['getAllRequiredTypesNames'  => 'Requires']
+            ['getAllRequiredTypesNames' => 'Requires']
         );
 
         $fields->findOrMakeTab('Root.Tags', _t(self::class . '.TagsTabTitle', 'Tags'));
