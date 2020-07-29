@@ -12,6 +12,7 @@ use SilverStripe\Forms\GridField\GridFieldEditButton;
 use SilverStripe\Forms\GridField\GridFieldFilterHeader;
 use SilverStripe\ORM\DataList;
 use SilverStripe\Versioned\GridFieldArchiveAction;
+use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 
 /**
  * Class FieldsProvider
