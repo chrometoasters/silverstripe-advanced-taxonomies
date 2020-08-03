@@ -3,7 +3,6 @@
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
-use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldOrderableRows;
 use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
@@ -38,6 +37,7 @@ use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Versioned\GridFieldArchiveAction;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\ViewableData;
+use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**
