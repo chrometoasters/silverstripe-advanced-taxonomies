@@ -38,13 +38,10 @@ use SilverStripe\Versioned\GridFieldArchiveAction;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\ViewableData;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
-use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**
- * Represents a single taxonomy term. Can be re-ordered in the CMS, and the default sorting is to use the order as
- * specified in the CMS.
- *
- * @method TaxonomyTerm Parent()
+ * Represents a single taxonomy term.
+ * Can be re-ordered in the CMS, and the default sorting is to use the order as specified in the CMS.
  */
 class TaxonomyTerm extends DataObject implements PermissionProvider
 {
@@ -913,11 +910,13 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
-     * This is the function that mimic the reversion relation for DataObject having many_many TaxonomyTerm as `Tags`
-     * using polymorphic ManyManyThroughList. As such, in TaxonomyTerm side, we can't define 'TaggedObject` as a
-     * $belongs_many_many relation to DataObject, instead we define a $has_many relation as "DataObjectTaxonomyTerms"
-     * which is the set of DataObjectTaxonomyTerm "through" objects, and we use this $has_many relation to work out the
-     * components of $belongs_many_many as "TaggedObjects"
+     * Generator method mimicing the reverse relation for DataObject having many_many TaxonomyTerm as `Tags`
+     * using polymorphic ManyManyThroughList.
+     *
+     * On the TaxonomyTerm side, we can't define 'TaggedObject' as $belongs_many_many relation to DataObject,
+     * instead we define a $has_many relation 'DataObjectTaxonomyTerms' which is the set of
+     * DataObjectTaxonomyTerm "through" objects, and we use this $has_many relation to work out the components of
+     * $belongs_many_many as "TaggedObjects".
      *
      * @return \Generator
      */
@@ -930,10 +929,10 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
 
     /**
-     * The function in care module doesn't support polymorphic ManyManyThrough, this tweak is a solution to support
+     * The function in core module doesn't support polymorphic ManyManyThrough, this tweak is a solution to support
      * polymorphic ManyManyThrough
      *
-     * TODO: an issue has been created, remove the overridden here once this issue is solved
+     * TODO: an issue has been created, remove the override here once this issue is resolved
      * https://github.com/silverstripe/silverstripe-framework/issues/9227
      *
      * @param string $remoteClass
@@ -1059,8 +1058,8 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     /**
      * Get a list of all objects tagged with this taxonomy term
      *
-     * @throws \ReflectionException
      * @return ArrayList
+     * @throws \ReflectionException
      */
     public function getTaggedDataObjects(): ArrayList
     {

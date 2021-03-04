@@ -21,6 +21,7 @@
   "require": {
     "silverstripe/admin": "^1",
     "silverstripe/framework": "^4",
+    "silverstripe/versioned": "^1",
     "silverstripe/vendor-plugin": "^1",
     "symbiote/silverstripe-gridfieldextensions": "^3.2.3"
   },

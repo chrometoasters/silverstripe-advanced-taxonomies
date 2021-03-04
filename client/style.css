@@ -8,7 +8,8 @@
 
 /* styles for inline tags tooltip (in GridField) */
 .Select--multi .Select-value-label {
-    text-decoration: none
+    text-decoration: none;
+    margin-top: 0;
 }
 
 .Select--multi .Select-value-label.with-tooltip {

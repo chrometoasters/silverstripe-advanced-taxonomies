@@ -21,8 +21,7 @@ class URLSegmentGenerator
         $urlCandidate = $filter->filter($rawCandidate);
 
         /**
-         * Fallback to generic TaxonomyTerm's ClassName-ID combination if the candidate url after
-         * filtering is empty
+         * Fallback to generic ClassName-ID combination if the candidate url after filtering is empty
          */
         if (!$urlCandidate || $urlCandidate == '-' || $urlCandidate == '-1') {
             $urlCandidate = "$modelClass-$modelID";

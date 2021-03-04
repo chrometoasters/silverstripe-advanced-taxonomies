@@ -31,13 +31,15 @@ class FieldsProvider
      */
     public static function getTaggingGridFieldConfig(DataList $searchList = null, array $extraDisplayFields = [], string $sortField = 'Sort'): GridFieldConfig
     {
-        // Remove config components from the Tags gridfield to disallow adding/deleting/archiving taxonomy terms from here
         $gfc = GridFieldConfig_RelationEditor::create();
+
+        // Remove config components from the Tags gridfield to disallow adding/deleting/archiving taxonomy terms from here
         $gfc->removeComponentsByType([
             GridFieldAddNewButton::class,
             GridFieldEditButton::class,
             GridFieldArchiveAction::class,
             GridFieldFilterHeader::class,
+            GridFieldAddExistingAutocompleter::class,
         ]);
 
         $gfc->getComponentByType(GridFieldDataColumns::class)->setDisplayFields(array_merge(
@@ -48,22 +50,16 @@ class FieldsProvider
             $extraDisplayFields
         ));
 
-        $gfc->addComponent(GridFieldOrderableRows::create($sortField));
-
-        // Shift the GridFieldAddExistingAutocompleter component to left
-        $gfc->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
-        $gfc->addComponent(
-            $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left')
-        );
+        $gfc->addComponents([
+            GridFieldOrderableRows::create($sortField),
+            $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left'),
+            new GridFieldInfoLink('buttons-before-left', '/at-taxonomy-overview', "Open 'All taxonomies' overview"),
+        ]);
 
         $autoResultFormat = '&nbsp;{$getTermHierarchy}&nbsp;';
         $addExisting->setResultsFormat($autoResultFormat);
         $addExisting->setPlaceholderText('Add tags by name');
         $addExisting->setSearchList($searchList ?? TaxonomyTerm::get());
-
-        $gfc->addComponent(
-            new GridFieldInfoLink('buttons-before-left', '/at-taxonomy-overview', "Open 'All taxonomies' overview")
-        );
 
         return $gfc;
     }

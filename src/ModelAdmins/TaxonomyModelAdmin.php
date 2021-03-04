@@ -9,7 +9,6 @@ use SilverStripe\Forms\GridField\GridFieldAddNewButton;
 use SilverStripe\ORM\SS_List;
 use SilverStripe\View\Requirements;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
-use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 /**
  * Management interface for Taxonomies, TaxonomyTerms
@@ -54,6 +53,13 @@ class TaxonomyModelAdmin extends ModelAdmin
     }
 
 
+    /**
+     * Specific editform for taxonomy terms
+     *
+     * @param null $id
+     * @param null $fields
+     * @return \SilverStripe\Forms\Form
+     */
     public function getEditForm($id = null, $fields = null)
     {
         if ($this->modelClass !== TaxonomyTerm::class) {
@@ -65,16 +71,11 @@ class TaxonomyModelAdmin extends ModelAdmin
         /** @var GridField $gf */
         $gf = $form->Fields()->dataFieldByName($this->sanitiseClassName($this->modelClass));
 
-        // Setup sorting of TaxonomyTerm siblings, if a suitable module is included
-        if (class_exists(GridFieldOrderableRows::class)) {
+        // Setup sorting
             $gf->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
-        } elseif (class_exists(GridFieldSortableRows::class)) {
-            $gf->getConfig()->addComponent(new GridFieldSortableRows('Sort'));
-        }
 
         // Customise the GridFieldAddNewButton's label
-        $gf->getConfig()->getComponentByType(GridFieldAddNewButton::class)
-            ->setButtonName('Add taxonomy');
+        $gf->getConfig()->getComponentByType(GridFieldAddNewButton::class)->setButtonName('Add taxonomy');
 
         $form->addExtraClass('at-modeladmin-editform');
 
