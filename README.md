@@ -62,7 +62,7 @@ segments under different parents).
 ## Requirements
 
 * SilverStripe 4.x
-* PHP 7.x
+* PHP ^7.3 (PHP8 not tested)
 
 ## Installation
 
