@@ -7,6 +7,7 @@ use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
+use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
@@ -67,10 +68,18 @@ class TaxonomyTerm extends BaseTerm
     private static $has_one = [
         'Parent' => self::class,
         'Type'   => self::class, // the root node of the particular taxonomy tree
+        'PrimaryConceptClass' => ConceptClass::class,
     ];
 
     private static $many_many = [
         'RequiredTypes' => self::class,
+        'OtherConceptClasses' => ConceptClass::class,
+    ];
+
+    private static $many_many_extraFields = [
+        'OtherConceptClasses' => [
+            'Sort' => 'Int',
+        ],
     ];
 
     private static $defaults = [
@@ -197,6 +206,29 @@ class TaxonomyTerm extends BaseTerm
             // Setup sorting
                 $childrenGrid->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
         }
+
+        // Tweak the OtherConceptClasses GridField
+        $otherConceptClassesGrid = $fields->dataFieldByName('OtherConceptClasses');
+        if ($otherConceptClassesGrid) {
+            $otherClassesConfig = $otherConceptClassesGrid->getConfig();
+            $otherClassesConfig->removeComponentsByType([
+                GridFieldAddNewButton::class,
+                GridFieldFilterHeader::class,
+            ]);
+            $otherClassesConfig->addComponent(GridFieldOrderableRows::create('Sort'));
+        }
+
+        // Adjust PrimaryConceptClass dropdown field
+        /** @var DropdownField $primaryConceptClass */
+        $primaryConceptClass = $fields->dataFieldByName('PrimaryConceptClassID');
+        $primaryConceptClass->setEmptyString('--- select one ---');
+        if ($this->ParentID) {
+            $primaryConceptClass->setDescription($this->_t('PrimaryConceptClass'));
+        }
+
+        // Change the OtherConceptClasses tab to ConceptClasses and move the PrimaryConceptClass dropdown to this tab
+        $otherConceptClassTab = $fields->findOrMakeTab('Root.OtherConceptClasses')->setTitle('Concept classes');
+        $otherConceptClassTab->insertBefore('OtherConceptClasses', $primaryConceptClass);
 
 
         // The "Terms" is a reversion (hence has_many) of the has_one 'Type' relation, so the GridField of 'Terms' is only
@@ -654,6 +686,47 @@ class TaxonomyTerm extends BaseTerm
         $names = $this->getAllRequiredTypes()->column('Name');
 
         return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
+    }
+
+
+    /**
+     * Get a primarily assigned concept class, taxonomy type inheritence is used if not set.
+     *
+     * @return ConceptClass|null
+     */
+    public function getConceptClass(): ?ConceptClass
+    {
+        $primaryConceptClass = $this->PrimaryConceptClass();
+        if ($primaryConceptClass && $primaryConceptClass->exists()) {
+            return $primaryConceptClass;
+        }
+
+        $type = $this->Type();
+        if ($type && $type->exists()) {
+            $typePrimaryConceptClass = $type->PrimaryConceptClass();
+            if ($typePrimaryConceptClass && $typePrimaryConceptClass->exists()) {
+                return $typePrimaryConceptClass;
+            }
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Get all concept classes associated with the term
+     *
+     * This covers both primary (either assigned explicitly or through taxonomy type) and other.
+     *
+     * @return ArrayData
+     */
+    public function getAllConceptClasses(): ArrayData
+    {
+        $all            = [];
+        $all['Primary'] = $this->getConceptClass();
+        $all['Other']   = $this->OtherConceptClasses()->sort('Sort');
+
+        return ArrayData::create($all);
     }
 
 

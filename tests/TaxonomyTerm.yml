@@ -1,12 +1,21 @@
+Chrometoaster\AdvancedTaxonomies\Models\ConceptClass:
+  cc1:
+    Name: 'Concept class 1'
+  cc2:
+    Name: 'Concept class 2'
+
 Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
   rootTerm1:
     Name: "Root term 1"
 
   rootTerm2:
     Name: "Root term 2"
+    OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1,
+                         =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
 
   rootTerm3:
     Name: "Root term 3"
+    PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
 
   level1Term3p1:
     Name: "Level 1 term 3.1"
@@ -15,6 +24,7 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
   level1Term3p2:
     Name: "Level 1 term 3.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+    PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
 
   level2Term3p1p1:
     Name: "Level 2 term 3.1.1"
@@ -40,6 +50,7 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     InternalOnly: true
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
                    =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm3
+    PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
 
   level1Term4p1:
     Name: "Level 1 term 4.1"
@@ -47,14 +58,19 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
                    =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
     RequiredTypesInheritRoot: false
+    OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1,
+                         =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
 
   level1Term4p2:
     Name: "Level 1 term 4.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm4
+    PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
+    OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
 
   level2Term4p1p1:
     Name: "Level 2 term 4.1.1"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
+    PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
 
   level2Term4p1p2:
     Name: "Level 2 term 4.1.2"

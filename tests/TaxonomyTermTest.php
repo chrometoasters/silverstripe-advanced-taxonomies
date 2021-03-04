@@ -2,6 +2,7 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Tests;
 
+use Chrometoaster\AdvancedTaxonomies\Models\ConceptClass;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
@@ -584,6 +585,88 @@ class TaxonomyTermTest extends SapphireTest
             1,
             $tag->getTaggedDataObjects()->count(),
             'tagForTaggedObjects should show one tagged objects after a tag removal'
+        );
+    }
+
+
+    /**
+     * Test the collection of terms that a ConceptClass is assigned as primary, including those terms by
+     * inheritance of taxonmy types
+     */
+    public function testConceptClassGetTerms()
+    {
+        $cc1   = $this->objFromFixture(ConceptClass::class, 'cc1');
+        $terms = $cc1->getTerms();
+
+        $this->assertEquals(
+            8,
+            $terms->count(),
+            'cc1 ConceptClass is associated with 8 taxonomy terms due to being assigned as PrimaryConceptClass'
+        );
+
+        $this->assertContains(
+            $this->objFromFixture(TaxonomyTerm::class, 'rootTerm3')->ID,
+            $terms->column('ID'),
+            'terms contain the root taxonomy term due to being assigned as PrimaryConceptClass'
+        );
+
+
+        $this->assertContains(
+            $this->objFromFixture(TaxonomyTerm::class, 'level2Term3p2p1')->ID,
+            $terms->column('ID'),
+            'terms contain the taxonomy term due to being descendant of rootTerm3'
+        );
+
+
+        $this->assertContains(
+            $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p1p1')->ID,
+            $terms->column('ID'),
+            'terms contain the non-root taxonomy term due to being assigned as PrimaryConceptClass'
+        );
+    }
+
+
+    /**
+     * Test the collection of terms that a CoceptClass is associated with, either as Primary (cover type inheritance),
+     * or as Others (many_many OtherConceptClasses relation), or both.
+     */
+    public function testConceptClassGetAllTerms()
+    {
+        $cc2           = $this->objFromFixture(ConceptClass::class, 'cc2');
+        $level1Term4p1 = $this->objFromFixture(TaxonomyTerm::class, 'level1Term4p1');
+
+        $terms    = $cc2->getTerms();
+        $allTerms = $cc2->getAllTerms();
+
+        $this->assertEquals(
+            6,
+            $terms->count(),
+            'cc2 ConceptClass is associated with 6 taxonomy terms due to being assigned as PrimaryConceptClass'
+        );
+
+        $this->assertContains(
+            $level1Term4p1->ID,
+            $terms->column('ID'),
+            'terms contain the taxonomy term level1Term4p1 due to being descendant of rootTerm4'
+        );
+
+        $this->assertGreaterThanOrEqual(
+            count($terms),
+            count($allTerms),
+            'All terms always contains at least the same amount of terms if all are primary concept class assignments'
+        );
+
+        $this->assertContains(
+            $level1Term4p1->ID,
+            $allTerms->column('ID'),
+            'terms due to OtherConceptClasses contain the taxonomy term level1Term4p1'
+        );
+
+        $this->assertEquals(
+            8,
+            $allTerms->count(),
+            'cc2 ConceptClass is associated with 8 taxonomy terms due to being assigned as '
+            . 'PrimaryConceptClass or as OtherConceptClasses, but no duplicated counts in getAllTerms() function'
         );
     }
 }

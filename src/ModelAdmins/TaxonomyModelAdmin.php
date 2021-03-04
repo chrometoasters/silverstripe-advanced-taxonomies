@@ -2,6 +2,7 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\ModelAdmins;
 
+use Chrometoaster\AdvancedTaxonomies\Models\ConceptClass;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Admin\ModelAdmin;
 use SilverStripe\Forms\GridField\GridField;
@@ -17,7 +18,7 @@ class TaxonomyModelAdmin extends ModelAdmin
 {
     private static $url_segment = 'at_taxonomy';
 
-    private static $managed_models = [TaxonomyTerm::class];
+    private static $managed_models = [TaxonomyTerm::class, ConceptClass::class];
 
     private static $menu_title = 'Taxonomies';
 
