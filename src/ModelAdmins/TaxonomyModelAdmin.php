@@ -2,6 +2,7 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\ModelAdmins;
 
+use Chrometoaster\AdvancedTaxonomies\Models\AssociativeRelationType;
 use Chrometoaster\AdvancedTaxonomies\Models\ConceptClass;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Admin\ModelAdmin;
@@ -18,7 +19,7 @@ class TaxonomyModelAdmin extends ModelAdmin
 {
     private static $url_segment = 'at_taxonomy';
 
-    private static $managed_models = [TaxonomyTerm::class, ConceptClass::class];
+    private static $managed_models = [TaxonomyTerm::class, ConceptClass::class, AssociativeRelationType::class];
 
     private static $menu_title = 'Taxonomies';
 
@@ -73,7 +74,7 @@ class TaxonomyModelAdmin extends ModelAdmin
         $gf = $form->Fields()->dataFieldByName($this->sanitiseClassName($this->modelClass));
 
         // Setup sorting
-            $gf->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
+        $gf->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
 
         // Customise the GridFieldAddNewButton's label
         $gf->getConfig()->getComponentByType(GridFieldAddNewButton::class)->setButtonName('Add taxonomy');
@@ -81,5 +82,22 @@ class TaxonomyModelAdmin extends ModelAdmin
         $form->addExtraClass('at-modeladmin-editform');
 
         return $form;
+    }
+
+
+    /**
+     * Hide models that are disabled
+     *
+     * @return array|mixed|string[]
+     */
+    public function getManagedModels()
+    {
+        $models = parent::getManagedModels();
+
+        if (!TaxonomyTerm::associatedTermsEnabled()) {
+            unset($models[AssociativeRelationType::class]);
+        }
+
+        return $models;
     }
 }

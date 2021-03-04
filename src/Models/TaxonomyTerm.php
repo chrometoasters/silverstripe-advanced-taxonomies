@@ -7,6 +7,7 @@ use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
+use SilverStripe\Forms\CheckboxField;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
@@ -16,12 +17,14 @@ use SilverStripe\Forms\GridField\GridFieldConfig_Base;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Forms\GridField\GridFieldDeleteAction;
 use SilverStripe\Forms\GridField\GridFieldEditButton;
+use SilverStripe\Forms\GridField\GridFieldFilterHeader;
 use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\OptionsetField;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\DataObjectInterface;
 use SilverStripe\ORM\DataObjectSchema;
 use SilverStripe\ORM\DB;
 use SilverStripe\ORM\FieldType\DBField;
@@ -33,6 +36,7 @@ use SilverStripe\ORM\SS_List;
 use SilverStripe\Versioned\GridFieldArchiveAction;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\ViewableData;
+use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 
 /**
@@ -65,17 +69,24 @@ class TaxonomyTerm extends BaseTerm
         'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class,
         'EquivalentAltTerms'      => EquivalentTerm::class,
         'LanguageAltTerms'        => LanguageTerm::class,
+        // inverse relation of AssociatedTerms to the ManyManyThrough joining object: AssociativeRelation
+        'AssociativeRelations'    => AssociativeRelation::class,
     ];
 
     private static $has_one = [
-        'Parent' => self::class,
-        'Type'   => self::class, // the root node of the particular taxonomy tree
+        'Parent'              => self::class,
+        'Type'                => self::class, // the root node of the particular taxonomy tree
         'PrimaryConceptClass' => ConceptClass::class,
     ];
 
     private static $many_many = [
-        'RequiredTypes' => self::class,
+        'RequiredTypes'       => self::class,
         'OtherConceptClasses' => ConceptClass::class,
+        'AssociatedTerms'     => [
+            'through' => AssociativeRelation::class,
+            'from'    => 'Source',
+            'to'      => 'Destination',
+        ],
     ];
 
     private static $owns = [
@@ -112,10 +123,10 @@ class TaxonomyTerm extends BaseTerm
     ];
 
     private static $summary_fields = [
-        'getNameAsTag'             => 'Name',
-        'getDescription15Words'    => 'Description',
-        'getTypeNameWithFlags'     => 'Type',
-        'getAllRequiredTypesNames' => 'Requires',
+        'getNameAsTag'                => 'Name',
+        'getDescription15Words'       => 'Description',
+        'getTypeNameWithFlags'        => 'Type',
+        'getAllRequiredTypesNames'    => 'Requires',
         'getAllAlternativeTermsNames' => 'Alternative terms',
     ];
 
@@ -143,6 +154,20 @@ class TaxonomyTerm extends BaseTerm
     {
         $setting = (bool) Config::forClass(self::class)->get('enable_language_terms');
         singleton(self::class)->extend('updateLanguageTermsEnabled', $setting);
+
+        return $setting;
+    }
+
+
+    /**
+     * Helper method to determine if equivalent terms feature should be enabled
+     *
+     * @return bool
+     */
+    public static function associatedTermsEnabled(): bool
+    {
+        $setting = (bool) Config::forClass(self::class)->get('enable_associated_terms');
+        singleton(self::class)->extend('updateAssociatedTermsEnabled', $setting);
 
         return $setting;
     }
@@ -244,7 +269,7 @@ class TaxonomyTerm extends BaseTerm
                 ->setButtonName('Add taxonomy term');
 
             // Setup sorting
-                $childrenGrid->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
+            $childrenGrid->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
         }
 
         // Tweak the OtherConceptClasses GridField
@@ -447,6 +472,68 @@ class TaxonomyTerm extends BaseTerm
             }
         }
 
+        // Remove AssociativeRelations GridField as it's a reverse relation
+        $fields->removeByName('AssociativeRelations');
+
+        // Only add/configure Associated terms gridfield for existing terms that are not types, when enabled
+        if (!$this->ParentID || !$this->exists() || !self::associatedTermsEnabled()) {
+            $fields->removeByName('AssociatedTerms');
+        } else {
+            $associatedGridField = $fields->dataFieldByName('AssociatedTerms');
+
+            if (AssociativeRelationType::get()->count()) {
+                $associatedGridConfig = $associatedGridField->getConfig();
+                $associatedGridConfig->removeComponentsByType([
+                    GridFieldAddNewButton::class,
+                    GridFieldDataColumns::class,
+                    GridFieldEditButton::class,
+                    GridFieldArchiveAction::class,
+                    GridFieldAddExistingAutocompleter::class,
+                ]);
+                $associatedGridConfig->addComponents([
+                    new GridFieldAddExistingAutocompleter('buttons-before-left'),
+                    GridFieldOrderableRows::create('Sort'),
+                ]);
+
+                // Make the GridField editable inline per row by GridFieldEditableColumns
+                $associatedGridConfig->addComponent($editableColumns = new GridFieldEditableColumns());
+                $editableColumns->setDisplayFields(
+                    [
+                        'ComponentAssociativeRelationTypeID'    => [
+                            'callback' => function ($record, $col, $grid) {
+                                return DropdownField::create(
+                                    $col,
+                                    'Associative type',
+                                    AssociativeRelationType::get()->map(),
+                                )->setEmptyString('--- select an associative type ---');
+                            },
+                            'title'    => 'Associative type',
+                        ],
+                        'ComponentAssociativeIsInverseRelation' => [
+                            'callback' => function ($record, $col, $grid) {
+                                return CheckboxField::create(
+                                    $col,
+                                    'Inverse relation (right to left)?',
+                                );
+                            },
+                            'title'    => 'Inverse relation (right to left)?',
+                        ],
+                        'getNameAsTag'                          => 'Associated taxonomy term',
+                    ]
+                );
+            } else {
+                $fields->removeFieldFromTab('Root.AssociatedTerms', 'AssociatedTerms');
+
+                $noTypesOfAssociationDefined = 'Please define at least one associative relation type first.';
+                $fields->addFieldToTab('Root.AssociatedTerms',
+                    LiteralField::create(
+                        'NoTypesOfAssociationDefined',
+                        '<p class="message warning">' . $noTypesOfAssociationDefined . '</p>'
+                    )
+                );
+            }
+        }
+
         // Reorder
         if (!$this->ParentID && isset($termsTab)) {
             // reorder Tabs so Terms tab appears at the last position
@@ -457,6 +544,75 @@ class TaxonomyTerm extends BaseTerm
         $this->i18nRestoreWarningConfig();
 
         return $fields;
+    }
+
+
+    /**
+     * This is used in GridFieldEditableColumns where the item as the Destination side TaxonomyTerm per row contains
+     * its component AssociativeRelation data object. The AssociativeRelation will be updated with the given
+     * AssociativeRelationTypeID
+     *
+     * @param $typeID
+     */
+    public function saveComponentAssociativeRelationTypeID($typeID): void
+    {
+        $associativeRelation = $this->getComponentAssociative();
+        if ($associativeRelation && $associativeRelation->exists()) {
+            $associativeRelation->AssociativeRelationTypeID = $typeID;
+        }
+        $associativeRelation->write();
+    }
+
+
+    /**
+     * @return int
+     */
+    public function getComponentAssociativeRelationTypeID(): int
+    {
+        $associativeRelation = $this->getComponentAssociative();
+        if ($associativeRelation && $associativeRelation->exists()) {
+            return $associativeRelation->AssociativeRelationTypeID;
+        }
+
+        return 0;
+    }
+
+
+    /**
+     * @param $isInverseRelation
+     */
+    public function saveComponentAssociativeIsInverseRelation($isInverseRelation): void
+    {
+        $associativeRelation = $this->getComponentAssociative();
+        if ($associativeRelation && $associativeRelation->exists()) {
+            $associativeRelation->IsInverseRelation = (bool) $isInverseRelation;
+        }
+        $associativeRelation->write();
+    }
+
+
+    /**
+     * @return bool
+     */
+    public function getComponentAssociativeIsInverseRelation(): bool
+    {
+        $associativeRelation = $this->getComponentAssociative();
+        if ($associativeRelation && $associativeRelation->exists()) {
+            return (bool) $associativeRelation->IsInverseRelation;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * @return DataObjectInterface|null
+     */
+    private function getComponentAssociative(): ?DataObjectInterface
+    {
+        $componentName = AssociativeRelation::config()->get('table_name');
+
+        return $this->{$componentName};
     }
 
 
@@ -594,7 +750,7 @@ class TaxonomyTerm extends BaseTerm
             return sprintf('%s', $term->Name);
         };
 
-        $termsDecorator = $termsDecorator ?: $plaintextDecorator;
+        $termsDecorator = $termsDecorator ? : $plaintextDecorator;
 
         // hierarchy parts that will be joined together with the levels separator, decorated via a callback if defined
         $parts = array_map($termsDecorator, array_reverse($this->getAncestors()->toArray()));
@@ -1161,7 +1317,7 @@ class TaxonomyTerm extends BaseTerm
                                 foreach ($mmtMaps as $mmtMap) {
                                     $owner = $item->{$mmtMap['ownerAccessor']}();
                                     if ($owner && $owner->exists() && $owner->ClassName === $mmtMap['ownerClass']) {
-                                        $fieldName = $mmtMap['relation'];
+                                        $fieldName    = $mmtMap['relation'];
                                         $relationName = 'many_many_through';
 
                                         break;
@@ -1169,8 +1325,8 @@ class TaxonomyTerm extends BaseTerm
                                     $owner = null;
                                 }
                             } else {
-                                $owner = $item;
-                                $fieldName = $field;
+                                $owner        = $item;
+                                $fieldName    = $field;
                                 $relationName = $relation;
                             }
 

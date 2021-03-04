@@ -75,3 +75,15 @@
     }
 }
 
+/* Special style for a GridField that use GridFieldEditableColumns */
+#Form_ItemEditForm_AssociatedTerms thead tr.sortable-header th,
+#Form_ItemEditForm_AssociatedTerms thead tr.sortable-header th span,
+#Form_ItemEditForm_AssociatedTerms tbody tr td{
+    text-align: center;
+}
+
+#Form_ItemEditForm_AssociatedTerms tbody tr td.col-ComponentAssociativeTypeID {
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
