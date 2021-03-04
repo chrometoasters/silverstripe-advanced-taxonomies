@@ -4,7 +4,6 @@ namespace Chrometoaster\AdvancedTaxonomies\Models;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
 use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
-use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
@@ -18,9 +17,7 @@ use SilverStripe\Forms\GridField\GridFieldDeleteAction;
 use SilverStripe\Forms\GridField\GridFieldEditButton;
 use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\LiteralField;
-use SilverStripe\Forms\NumericField;
 use SilverStripe\Forms\OptionsetField;
-use SilverStripe\i18n\i18n;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
@@ -32,8 +29,6 @@ use SilverStripe\ORM\FieldType\DBText;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\ORM\Queries\SQLSelect;
 use SilverStripe\ORM\SS_List;
-use SilverStripe\Security\Permission;
-use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Versioned\GridFieldArchiveAction;
 use SilverStripe\View\ArrayData;
 use SilverStripe\View\ViewableData;
@@ -43,7 +38,7 @@ use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
  * Represents a single taxonomy term.
  * Can be re-ordered in the CMS, and the default sorting is to use the order as specified in the CMS.
  */
-class TaxonomyTerm extends DataObject implements PermissionProvider
+class TaxonomyTerm extends BaseTerm
 {
     private static $table_name = 'AT_TaxonomyTerm';
 
@@ -52,21 +47,12 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     private static $plural_name = 'Taxonomies';
 
     private static $db = [
-        'Name'                     => 'Varchar(255)',
-        'Title'                    => 'Varchar(255)',
-        'TitlePlural'              => 'Varchar(255)',
-        'URLSegment'               => 'Varchar(255)',
-        'Description'              => 'Text',
-        'AuthorDefinition'         => 'Text',
-        'PublicDefinition'         => 'Text',
         'SingleSelect'             => 'Boolean(0)',
         'InternalOnly'             => 'Boolean(0)',
         'RequiredTypesInheritRoot' => 'Boolean(1)',
-        'Sort'                     => 'Int',
     ];
 
     private static $indexes = [
-        'URLSegment'   => true,
         'SingleSelect' => true,
         'InternalOnly' => true,
     ];
@@ -74,7 +60,8 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     private static $has_many = [
         'Children'                => self::class . '.Parent',
         'Terms'                   => self::class . '.Type',
-        'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class, // used for the ManyManyThrough joining object
+        // inverse relation of Tags to the ManyManyThrough joining object: DataObjectTaxonomyTerm
+        'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class,
     ];
 
     private static $has_one = [
@@ -87,36 +74,27 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
     ];
 
     private static $defaults = [
-        'InternalOnly'             => false,
-        'RequiredTypesInheritRoot' => true,
+        'InternalOnly'             => 0,
+        'RequiredTypesInheritRoot' => 1,
     ];
 
     private static $field_labels = [
-        'Title'                    => 'Display name singular',
-        'TitlePlural'              => 'Display name plural',
         'SingleSelect'             => 'Single select?',
         'InternalOnly'             => 'Internal only, hide from end-users?',
         'RequiredTypesInheritRoot' => 'Inherit required types from the root term?',
     ];
 
     private static $searchable_fields = [
-        'Name'        => ['filter' => 'PartialMatchFilter'],
-        'Title'       => ['filter' => 'PartialMatchFilter'],
-        'TitlePlural' => ['filter' => 'PartialMatchFilter'],
     ];
 
     private static $extensions = [
         Hierarchy::class,
     ];
 
-    private static $default_sort = 'Sort';
-
     private static $summary_fields = [
         'getNameAsTag'             => 'Name',
         'getDescription15Words'    => 'Description',
         'getTypeNameWithFlags'     => 'Type',
-        'Title'                    => 'Singular',
-        'TitlePlural'              => 'Plural',
         'getAllRequiredTypesNames' => 'Requires',
     ];
 
@@ -126,11 +104,12 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
      */
     public function getCMSFields()
     {
+        $this->i18nDisableWarning();
+
         $fields = parent::getCMSFields();
 
         // Moving taxonomy terms is not supported
         $fields->removeByName('ParentID');
-        $fields->removeByName('Sort');
 
         // TypeID is the ID of this term's root term which will be automatically populated by the hierarchy,
         // so it should be removed unconditionally
@@ -139,46 +118,14 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         // Remove the many_many_through data object DataObjectTaxonomyTerms
         $fields->removeByName('DataObjectTaxonomyTerms');
 
-        // Begin to use _t(), first disable 'missing_default_warning', which allows _t() to be called without default
-        i18n::config()->update('missing_default_warning', false);
-
-        // Define a literalField that presents empty line , and could be reused in many occasionz.
+        // Define a reusable literal field that represents an empty line
         $lineBreak = LiteralField::create('LineBreak', '<br />');
-
-        // Add description to field Name
-        $nameDescription = _t(static::class . '.Name_Description');
-        $fields->datafieldByName('Name')->setDescription($nameDescription);
-
-        // Add description to field Title
-        $titleFieldDescription = _t(static::class . '.Title_Description');
-        $fields->dataFieldByName('Title')->setDescription($titleFieldDescription);
-
-        // Add description to field TitlePlural
-        $titlePluralDescription = _t(static::class . '.TitlePlural_Description');
-        $fields->dataFieldByName('TitlePlural')->setDescription($titlePluralDescription);
-
-        // Add description to field Description
-        $descriptionDescription = _t(static::class . '.Description_Description');
-        $fields->dataFieldByName('Description')->setDescription($descriptionDescription)->setRows(2);
-
-        // Add description to field AuthorDefinition
-        $authorDefinitionDescription = _t(static::class . '.AuthorDefinition_Description');
-        $fields->dataFieldByName('AuthorDefinition')->setDescription($authorDefinitionDescription)->setRows(2);
-
-        // Add description to field PublicDefinition
-        $publicDefinitionDescription = _t(static::class . '.PublicDefinition_Description');
-        $fields->dataFieldByName('PublicDefinition')->setDescription($publicDefinitionDescription)->setRows(2);
-
-        // Add description to field URLSegment
-        $urlSegmentDescription = _t(static::class . '.URLSegment_Description');
-        $fields->dataFieldByName('URLSegment')->setDescription($urlSegmentDescription);
 
         // Tweak InternalOnly
         if ($this->ParentID) {
             $fields->removeByName('InternalOnly');
         } else {
             // Field InternalOnly
-            $internalOnlyFieldDescription = _t(static::class . '.InternalOnly_Description');
             $fields->replaceField(
                 'InternalOnly',
                 $publicTypeField = OptionsetField::create(
@@ -188,7 +135,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                 )
             );
 
-            $publicTypeField->setDescription($internalOnlyFieldDescription);
+            $publicTypeField->setDescription($this->_t('InternalOnly'));
         }
 
         // Tweak SingleSelect
@@ -226,11 +173,8 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             $fields->replaceField('SingleSelect', $singleSelectField);
 
             // provide description for different combination of states from the lang file
-            $singleSelectDescription = _t(
-                static::class
-                . '.SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '') . '_Description'
-            );
-            $singleSelectField->setDescription(sprintf($singleSelectDescription, $taggedClass));
+            $singleSelectDescriptionKey = 'SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '');
+            $singleSelectField->setDescription($this->_t($singleSelectDescriptionKey, $taggedClass));
         }
 
 
@@ -250,19 +194,8 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             $childrenGrid->getConfig()->getComponentByType(GridFieldAddNewButton::class)
                 ->setButtonName('Add taxonomy term');
 
-            // Setup sorting of TaxonomyTerm siblings, and fall back to a manual NumericField if no sorting is possible
-            if (class_exists(GridFieldOrderableRows::class)) {
+            // Setup sorting
                 $childrenGrid->getConfig()->addComponent(GridFieldOrderableRows::create('Sort'));
-            } elseif (class_exists(GridFieldSortableRows::class)) {
-                $childrenGrid->getConfig()->addComponent(new GridFieldSortableRows('Sort'));
-            } else {
-                $sortDescription = _t(static::class, 'Sort');
-                $fields->addFieldToTab(
-                    'Root.Main',
-                    NumericField::create('Sort', 'Sort Order')
-                        ->setDescription($sortDescription)
-                );
-            }
         }
 
 
@@ -291,7 +224,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             $termsTab         = $fields->findOrMakeTab('Root.Terms')->setTitle('Descendants list');
             $termsDescription = LiteralField::create(
                 'TermsDescription',
-                '<p class="message good">' . _t(static::class . '.Terms_Description') . '</p>'
+                '<p class="message good">' . $this->_t('Terms') . '</p>'
             );
             $termsTab->insertBefore('Terms', $termsDescription);
             $termsTab->insertBefore('Terms', $lineBreak);
@@ -313,8 +246,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                     $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left')
                 );
 
-            $addExisting->setPlaceholderText('Add taxonomies by name')
-                ->setButtonText('Add taxonomy');
+            $addExisting->setPlaceholderText('Add taxonomies by name')->setButtonText('Add taxonomy');
 
             // Not to confuse user, we are not going to show the RequiredTypes in this GridField, which is to show all
             // the RequiredTypes for a TaxonomyTerm
@@ -360,10 +292,9 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
 
         // Add description of RequiredTypes
         if ($gridRequiredTypes) {
-            $requiredTypesDescription = _t(static::class . '.RequiredTypes_Description');
             $requiredTypesPromptField = LiteralField::create(
                 'RequiredTypesExplanation',
-                '<p class="message good">' . $requiredTypesDescription . '</p>'
+                '<p class="message good">' . $this->_t('RequiredTypes') . '</p>'
             );
             $requiredTypesTab->insertBefore('RequiredTypes', $requiredTypesPromptField);
             $requiredTypesTab->insertBefore('RequiredTypes', $lineBreak);
@@ -390,7 +321,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
                         [
                             'ID'               => 'ID',
                             'singular_name'    => 'Data model (object type)',
-                            'Title'            => 'Title',
+                            'Name'             => 'Name',
                             'AT_LinkedThrough' => 'Relation',
                             'AT_CMSLink'       => 'Edit',
                         ]
@@ -413,6 +344,8 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             $fields->removeFieldFromTab('Root', ['Terms']);
             $fields->fieldByName('Root')->push($termsTab);
         }
+
+        $this->i18nRestoreWarningConfig();
 
         return $fields;
     }
@@ -529,132 +462,6 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         if (!$this->TitlePlural && $this->Title) {
             $this->TitlePlural = PluralGenerator::generate($this->Title);
         }
-
-        if (!$this->URLSegment) {
-            if ($this->Name) {
-                $this->URLSegment = URLSegmentGenerator::generate(
-                    $this->Name,
-                    static::class,
-                    $this->ID
-                );
-            }
-        } elseif ($this->isChanged('URLSegment', 2)) {
-            // Do a strict check on change level, to avoid double encoding caused by
-            // bogus changes through forceChange()
-            $this->URLSegment = URLSegmentGenerator::generate(
-                $this->URLSegment,
-                static::class,
-                $this->ID
-            );
-        }
-    }
-
-
-    /**
-     * @param null $member
-     * @return bool
-     */
-    public function canView($member = null)
-    {
-        return true;
-    }
-
-
-    /**
-     * @param null $member
-     * @return bool|int|null
-     */
-    public function canEdit($member = null)
-    {
-        $extended = $this->extendedCan(__FUNCTION__, $member);
-        if ($extended !== null) {
-            return $extended;
-        }
-
-        return Permission::check('AT_TAXONOMYTERM_EDIT');
-    }
-
-
-    /**
-     * @param null $member
-     * @return bool|int|null
-     */
-    public function canDelete($member = null)
-    {
-        $extended = $this->extendedCan(__FUNCTION__, $member);
-        if ($extended !== null) {
-            return $extended;
-        }
-
-        return Permission::check('AT_TAXONOMYTERM_DELETE');
-    }
-
-
-    /**
-     * @param null $member
-     * @return bool
-     */
-    public function canArchive($member = null)
-    {
-        return $this->canDelete($member);
-    }
-
-
-    /**
-     * @param null $member
-     * @param array $context
-     * @return bool|int|null
-     */
-    public function canCreate($member = null, $context = [])
-    {
-        $extended = $this->extendedCan(__FUNCTION__, $member);
-        if ($extended !== null) {
-            return $extended;
-        }
-
-        return Permission::check('AT_TAXONOMYTERM_CREATE');
-    }
-
-
-    /**
-     * @return array
-     */
-    public function providePermissions()
-    {
-        $category = 'Advanced taxonomies';
-
-        return [
-            'AT_TAXONOMYTERM_EDIT' => [
-                'name' => _t(
-                    self::class . '.EditPermissionLabel',
-                    'Edit a taxonomy term'
-                ),
-                'category' => _t(
-                    self::class . '.Category',
-                    $category
-                ),
-            ],
-            'AT_TAXONOMYTERM_DELETE' => [
-                'name' => _t(
-                    self::class . '.DeletePermissionLabel',
-                    'Delete a taxonomy term and all nested terms'
-                ),
-                'category' => _t(
-                    self::class . '.Category',
-                    $category
-                ),
-            ],
-            'AT_TAXONOMYTERM_CREATE' => [
-                'name' => _t(
-                    self::class . '.CreatePermissionLabel',
-                    'Create a taxonomy term'
-                ),
-                'category' => _t(
-                    self::class . '.Category',
-                    $category
-                ),
-            ],
-        ];
     }
 
 
@@ -739,39 +546,6 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         $text->setValue($this->Description);
 
         return $text->LimitWordCount(15);
-    }
-
-
-    /**
-     * Find term by a url-like path, e.g. information-type/newsletter/highlights.
-     *
-     * @param string|array $slug
-     * @param int $parentID
-     * @return self|null
-     */
-    public static function getBySlug($slug, int $parentID = 0)
-    {
-        if (is_string($slug)) {
-            $slug = array_filter(explode('/', $slug), function ($item) {
-                return mb_strlen($item);
-            });
-        }
-        if (!is_array($slug)) {
-            throw new \RuntimeException('$slug must be a string or an array.');
-        }
-
-        $urlSegment = array_shift($slug);
-        $term       = self::get()->filter(['ParentID' => $parentID, 'URLSegment' => $urlSegment])->first();
-
-        if ($term && $term->exists()) {
-            if (count($slug) === 0) {
-                return $term;
-            }
-
-            return self::getBySlug($slug, $term->ID); // use of static intentional to allow override
-        }
-
-        return null;
     }
 
 
