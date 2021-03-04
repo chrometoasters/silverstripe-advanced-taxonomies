@@ -31,6 +31,11 @@
                 <b>Required taxonomies</b>: <% loop $AllRequiredTypes %>{$Name}<% if not $Last %>, <% end_if %><% end_loop %>
             <% end_if %>
 
+            <% if $AllAlternativeTermsNames %>
+                <br><br>
+                {$AllAlternativeTermsNames}
+            <% end_if %>
+
             <% if $AllConceptClasses %><% with $AllConceptClasses %>
                 <br>
                 <% if $Primary %>

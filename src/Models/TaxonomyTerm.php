@@ -63,6 +63,8 @@ class TaxonomyTerm extends BaseTerm
         'Terms'                   => self::class . '.Type',
         // inverse relation of Tags to the ManyManyThrough joining object: DataObjectTaxonomyTerm
         'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class,
+        'EquivalentAltTerms'      => EquivalentTerm::class,
+        'LanguageAltTerms'        => LanguageTerm::class,
     ];
 
     private static $has_one = [
@@ -74,6 +76,11 @@ class TaxonomyTerm extends BaseTerm
     private static $many_many = [
         'RequiredTypes' => self::class,
         'OtherConceptClasses' => ConceptClass::class,
+    ];
+
+    private static $owns = [
+        'EquivalentAltTerms',
+        'LanguageAltTerms',
     ];
 
     private static $many_many_extraFields = [
@@ -94,6 +101,10 @@ class TaxonomyTerm extends BaseTerm
     ];
 
     private static $searchable_fields = [
+        'EquivalentAltTerms.Name'  => ['filter' => 'PartialMatchFilter'],
+        'EquivalentAltTerms.Title' => ['filter' => 'PartialMatchFilter'],
+        'LanguageAltTerms.Name'    => ['filter' => 'PartialMatchFilter'],
+        'LanguageAltTerms.Title'   => ['filter' => 'PartialMatchFilter'],
     ];
 
     private static $extensions = [
@@ -105,7 +116,36 @@ class TaxonomyTerm extends BaseTerm
         'getDescription15Words'    => 'Description',
         'getTypeNameWithFlags'     => 'Type',
         'getAllRequiredTypesNames' => 'Requires',
+        'getAllAlternativeTermsNames' => 'Alternative terms',
     ];
+
+
+    /**
+     * Helper method to determine if equivalent terms feature should be enabled
+     *
+     * @return bool
+     */
+    public static function equivalentTermsEnabled(): bool
+    {
+        $setting = (bool) Config::forClass(self::class)->get('enable_equivalent_terms');
+        singleton(self::class)->extend('updateEquivalentTermsEnabled', $setting);
+
+        return $setting;
+    }
+
+
+    /**
+     * Helper method to determine if language terms feature should be enabled
+     *
+     * @return bool
+     */
+    public static function languageTermsEnabled(): bool
+    {
+        $setting = (bool) Config::forClass(self::class)->get('enable_language_terms');
+        singleton(self::class)->extend('updateLanguageTermsEnabled', $setting);
+
+        return $setting;
+    }
 
 
     /**
@@ -230,6 +270,43 @@ class TaxonomyTerm extends BaseTerm
         $otherConceptClassTab = $fields->findOrMakeTab('Root.OtherConceptClasses')->setTitle('Concept classes');
         $otherConceptClassTab->insertBefore('OtherConceptClasses', $primaryConceptClass);
 
+        // Move EquivalentAltTerms and LanguageAltTerms gridfields to AlternativeTerms tab
+        // and remove the LinkExisting buttons from the two grid fields, and make them orderable
+        // Only applies to existing terms that are not types
+        if (!$this->ParentID || !$this->exists()) {
+            $fields->removeByName([
+                'AlternativeTerms',
+                'EquivalentAltTerms',
+                'LanguageAltTerms',
+            ]);
+        } else {
+            if (self::equivalentTermsEnabled()) {
+                $fields->findOrMakeTab('Root.AlternativeTerms', 'Alternative terms');
+
+                $gf_EquivalentAltTerms = $fields->dataFieldByName('EquivalentAltTerms');
+                // remove search and add sort
+                $gfc_EquivalentAltTerms = $gf_EquivalentAltTerms->getConfig();
+                $gfc_EquivalentAltTerms->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
+                $gfc_EquivalentAltTerms->addComponent(GridFieldOrderableRows::create('Sort'));
+
+                $fields->addFieldToTab('Root.AlternativeTerms', $gf_EquivalentAltTerms);
+            }
+
+            if (self::languageTermsEnabled()) {
+                $fields->findOrMakeTab('Root.AlternativeTerms', 'Alternative terms');
+
+                $gf_LanguageAltTerms = $fields->dataFieldByName('LanguageAltTerms');
+                // remove search and add sort
+                $gfc_LanguageAltTerms = $gf_LanguageAltTerms->getConfig();
+                $gfc_LanguageAltTerms->removeComponentsByType(GridFieldAddExistingAutocompleter::class);
+                $gfc_LanguageAltTerms->addComponent(GridFieldOrderableRows::create('Sort'));
+
+                $fields->addFieldToTab('Root.AlternativeTerms', $gf_LanguageAltTerms);
+            }
+
+            // remove scaffolded tabs regardless
+            $fields->removeByName(['EquivalentAltTerms', 'LanguageAltTerms']);
+        }
 
         // The "Terms" is a reversion (hence has_many) of the has_one 'Type' relation, so the GridField of 'Terms' is only
         // shown on root terms.
@@ -684,6 +761,149 @@ class TaxonomyTerm extends BaseTerm
     public function getAllRequiredTypesNames(string $delimiter = '<br />'): DBHTMLText
     {
         $names = $this->getAllRequiredTypes()->column('Name');
+
+        return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
+    }
+
+
+    /**
+     * Get a list of lists of alternative terms associated to this term
+     *
+     * The list is grouped by the alt term class, such as (e.g. EquivalentAltTerm, LanguageAltTerm etc.)
+     *
+     * @return array
+     * @throws \ReflectionException
+     */
+    public function getAllAlternativeTermsGroupedByType(): array
+    {
+        $groups = [];
+
+        foreach (ClassInfo::subclassesFor(AlternativeTerm::class, false) as $altTermClass) {
+
+            // find the first has_one field as each alternative term needs a reverse relation to this class
+            foreach (Config::inst()->get($altTermClass, 'has_one') as $field => $taxonomyTermClass) {
+
+                if (is_a($taxonomyTermClass, self::class, true)) {
+                    if (!array_key_exists($altTermClass, $groups)) {
+                        $groups[$altTermClass] = [];
+                    }
+
+                    $group = [];
+                    foreach (DataObject::get($altTermClass)->filter($field . 'ID', $this->ID) as $altTerm) {
+                        if ($altTerm && $altTerm->exists()) {
+                            $group[] = $altTerm;
+                        }
+                    }
+
+                    if (count($group)) {
+                        $groups[$altTermClass] += $group;
+                    }
+
+                    // finish once we've found the first reverse relation
+                    break;
+                }
+            }
+        }
+
+        return $groups;
+    }
+
+
+    /**
+     * Get a field from the most relevant Language Alternative term (either by the locale, the primary flag)
+     *
+     * When no suitable alt term is found this term is used as the fallback
+     *
+     * Note: No return type is specified due to the nature of how Silverstripe works with db fields.
+     *
+     * @param string $field
+     * @param string $locale
+     * @return mixed|DataObject|DBField|null
+     */
+    public function LanguageAltTermField(string $field, string $locale = '')
+    {
+        $langTerms = $this->LanguageAltTerms();
+
+        if ($locale) {
+            $filter = ['Locale' => $locale];
+        } else {
+            $filter = ['IsPrimary' => true];
+        }
+        $term = $langTerms->filter($filter)->first();
+
+        if (!$term) {
+            $term = $this;
+        }
+
+        return $term && $term->hasField($field) ? $term->getField($field) : null;
+    }
+
+
+    /**
+     * Get a field from the relevant Equivalent Alternative term (by the type)
+     *
+     * Note: No return type is specified due to the nature of how Silverstripe works with db fields.
+     *
+     * @param string $field
+     * @param string $locale
+     * @return mixed|DataObject|DBField|null
+     */
+    public function EquivalentAltTermField(string $field, string $type)
+    {
+        $term = $this->EquivalentAltTerms()->filter(['EquivalentType' => $type])->first();
+
+        return $term && $term->hasField($field) ? $term->getField($field) : null;
+    }
+
+
+    /**
+     * Get a flat list of all alt terms associated to this taxonomy term
+     *
+     * @return SS_List
+     */
+    public function getAllAlternativeTerms(): SS_List
+    {
+        $ids = [];
+
+        foreach ($this->getAllAlternativeTermsGroupedByType() as $type => $altTerms) {
+            foreach ($altTerms as $altTerm) {
+                $id       = $altTerm->ID;
+                $ids[$id] = $id; // using the ID as the key as well as the value to keep only unique values
+            }
+        }
+
+        if (count($ids)) {
+            return AlternativeTerm::get()->byIDs(array_values($ids));
+        }
+
+        return ArrayList::create();
+    }
+
+
+    /**
+     * Get a list of lists of alternative terms associated to this term for a term rich-info overview
+     *
+     * @param string $delimiter
+     * @return DBHTMLText
+     * @throws \ReflectionException
+     */
+    public function getAllAlternativeTermsNames(string $delimiter = '<br />'): DBHTMLText
+    {
+        $names = [];
+
+        foreach ($this->getAllAlternativeTermsGroupedByType() as $type => $altTerms) {
+            if (!count($altTerms)) {
+                continue; // skip groups with no terms
+            }
+
+            $altTermTitles = [];
+
+            foreach ($altTerms as $altTerm) {
+                $altTermTitles[] = $altTerm->getAltTermTitle();
+            }
+
+            $names[] = sprintf('<b>%s</b>: %s', singleton($type)->plural_name(), implode(', ', $altTermTitles));
+        }
 
         return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
     }

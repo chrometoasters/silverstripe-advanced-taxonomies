@@ -7,6 +7,7 @@
         <% end_if %>
         <td>{$Description}</td>
         <td>{$AuthorDefinition}</td>
+        <td>{$AllAlternativeTermsNames}</td>
         <td><% with $AllConceptClasses %>
             <% if $Primary %>Primary: {$Primary.Name}<% end_if %>
             <% if $Other %><% if $Primary %><br><% end_if %>

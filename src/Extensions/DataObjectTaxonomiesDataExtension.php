@@ -63,7 +63,7 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
 
         $gridFieldConfig = FieldsProvider::getTaggingGridFieldConfig(
             $searchList,
-            ['getAllRequiredTypesNames' => 'Requires']
+            ['getAllRequiredTypesNames' => 'Requires', 'getAllAlternativeTermsNames' => 'Alternative terms']
         );
 
         $fields->findOrMakeTab('Root.Tags', _t(self::class . '.TagsTabTitle', 'Tags'));

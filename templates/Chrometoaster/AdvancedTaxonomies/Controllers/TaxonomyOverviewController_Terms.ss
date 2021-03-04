@@ -4,6 +4,7 @@
         <th>Term</th>
         <th>Description</th>
         <th>Author definition</th>
+        <th>Alternative terms</th>
         <th>Concept classes</th>
     </tr>
     </thead>
