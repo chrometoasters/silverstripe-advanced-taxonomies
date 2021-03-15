@@ -66,8 +66,9 @@ class AT4xMigrationTask extends BuildTask
         }
 
         $versionedFields = array_keys(Config::inst()->get(Versioned::class, 'db_for_versions_table'));
+        $termTableFields = array_keys($schema->databaseFields(TaxonomyTerm::class, false));
 
-        DB::get_conn()->withTransaction(function () use ($schema, $termTable, $versionedFields) {
+        DB::get_conn()->withTransaction(function () use ($schema, $termTable, $termTableFields, $versionedFields) {
 
             // cater for standard versioning db table suffiixes
             $dbTableSuffixes = [
@@ -79,9 +80,10 @@ class AT4xMigrationTask extends BuildTask
             foreach ($dbTableSuffixes as $dbTableSuffix) {
                 foreach ([BaseObject::class, BaseTerm::class] as $model) {
 
-                    // get db table with suffix and all uninherited db fields
+                    // get db table with suffix and all uninherited db fields, remove fields not shared with TaxonomyTerm
                     $dbTable = $schema->tableName($model) . $dbTableSuffix;
                     $dbFields = array_keys($schema->databaseFields($model, false));
+                    $dbFields = array_intersect($dbFields, $termTableFields);
 
                     // add special versioning fields
                     if ($dbTableSuffix === '_Versions') {
