@@ -29,7 +29,7 @@ class AT4xMigrationTask extends BuildTask
      */
     public static function migrate()
     {
-        return self::create()->run(new HTTPRequest('GET', '/'));
+        self::create()->run(new HTTPRequest('GET', '/'));
     }
 
 
