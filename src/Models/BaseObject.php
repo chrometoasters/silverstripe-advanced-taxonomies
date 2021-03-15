@@ -2,7 +2,9 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
+use Chrometoaster\AdvancedTaxonomies\Dev\AT4MigrationTask;
 use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\RequiredFields;
 use SilverStripe\i18n\i18n;
@@ -284,5 +286,16 @@ class BaseObject extends DataObject implements PermissionProvider
                 'category' => $category,
             ],
         ];
+    }
+
+
+    /**
+     * Trigger the 3.x to 4.x data migration (when enabled)
+     */
+    public function requireDefaultRecords()
+    {
+        parent::requireDefaultRecords();
+
+        AT4MigrationTask::migrate();
     }
 }

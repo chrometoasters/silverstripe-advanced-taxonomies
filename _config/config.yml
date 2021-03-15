@@ -9,6 +9,9 @@ SilverStripe\Control\Director:
   rules:
     at-taxonomy-overview: Chrometoaster\AdvancedTaxonomies\Controllers\TaxonomyOverviewController
 
+Chrometoaster\AdvancedTaxonomies\Dev\AT4xMigrationTask:
+  enable_v4_migration: true
+
 ---
 Only:
   moduleexists: 'silverstripe/cms'
