@@ -52,7 +52,17 @@ class AT4xMigrationTask extends BuildTask
 
         // Safety net
         if (!($baseObjectTable && $baseTermTable && $termTable)) {
-            throw new Exception(sprintf("One of the required db tables (%s, %s, %s) doesn't exist, did you run dev/build with a flush param?", $baseObjectTable, $baseTermTable, $termTable));
+            throw new Exception(sprintf("One of the required db tables (%s, %s, %s) doesn't exist, did you run dev/build with the flush param?", $baseObjectTable, $baseTermTable, $termTable));
+        }
+
+        // Get row numbers for all models
+        $termsCount       = DB::query(sprintf('SELECT COUNT(1) FROM "%s"', $termTable))->value();
+        $baseObjectsCount = DB::query(sprintf('SELECT COUNT(1) FROM "%s"', $baseObjectTable))->value();
+        $baseTermsCount   = DB::query(sprintf('SELECT COUNT(1) FROM "%s"', $baseTermTable))->value();
+
+        // Skip migration if all tables have the same number of records
+        if (($termsCount === $baseObjectsCount) && ($termsCount == $baseTermsCount)) {
+            return;
         }
 
         $versionedFields = array_keys(Config::inst()->get(Versioned::class, 'db_for_versions_table'));
