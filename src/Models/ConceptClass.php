@@ -156,7 +156,7 @@ class ConceptClass extends BaseObject
      */
     protected function getDefaultConceptClasses(): array
     {
-        return $this->config()->get('default_concept_classes') ? : [];
+        return $this->config()->get('default_concept_classes') ?: [];
     }
 
 

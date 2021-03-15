@@ -23,7 +23,6 @@ use SilverStripe\Versioned\Versioned;
  *     ];
  *
  * The terms are added by their full-path-like url slugs.
- *
  */
 class DefaultTermsDataExtension extends DataExtension
 {

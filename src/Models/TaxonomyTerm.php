@@ -63,14 +63,14 @@ class TaxonomyTerm extends BaseTerm
     ];
 
     private static $has_many = [
-        'Children'                => self::class . '.Parent',
-        'Terms'                   => self::class . '.Type',
+        'Children' => self::class . '.Parent',
+        'Terms'    => self::class . '.Type',
         // inverse relation of Tags to the ManyManyThrough joining object: DataObjectTaxonomyTerm
         'DataObjectTaxonomyTerms' => DataObjectTaxonomyTerm::class,
         'EquivalentAltTerms'      => EquivalentTerm::class,
         'LanguageAltTerms'        => LanguageTerm::class,
         // inverse relation of AssociatedTerms to the ManyManyThrough joining object: AssociativeRelation
-        'AssociativeRelations'    => AssociativeRelation::class,
+        'AssociativeRelations' => AssociativeRelation::class,
     ];
 
     private static $has_one = [
@@ -499,7 +499,7 @@ class TaxonomyTerm extends BaseTerm
                 $associatedGridConfig->addComponent($editableColumns = new GridFieldEditableColumns());
                 $editableColumns->setDisplayFields(
                     [
-                        'ComponentAssociativeRelationTypeID'    => [
+                        'ComponentAssociativeRelationTypeID' => [
                             'callback' => function ($record, $col, $grid) {
                                 return DropdownField::create(
                                     $col,
@@ -507,7 +507,7 @@ class TaxonomyTerm extends BaseTerm
                                     AssociativeRelationType::get()->map(),
                                 )->setEmptyString('--- select an associative type ---');
                             },
-                            'title'    => 'Associative type',
+                            'title' => 'Associative type',
                         ],
                         'ComponentAssociativeIsInverseRelation' => [
                             'callback' => function ($record, $col, $grid) {
@@ -516,16 +516,17 @@ class TaxonomyTerm extends BaseTerm
                                     'Inverse relation (right to left)?',
                                 );
                             },
-                            'title'    => 'Inverse relation (right to left)?',
+                            'title' => 'Inverse relation (right to left)?',
                         ],
-                        'getNameAsTag'                          => 'Associated taxonomy term',
+                        'getNameAsTag' => 'Associated taxonomy term',
                     ]
                 );
             } else {
                 $fields->removeFieldFromTab('Root.AssociatedTerms', 'AssociatedTerms');
 
                 $noTypesOfAssociationDefined = 'Please define at least one associative relation type first.';
-                $fields->addFieldToTab('Root.AssociatedTerms',
+                $fields->addFieldToTab(
+                    'Root.AssociatedTerms',
                     LiteralField::create(
                         'NoTypesOfAssociationDefined',
                         '<p class="message warning">' . $noTypesOfAssociationDefined . '</p>'
@@ -750,7 +751,7 @@ class TaxonomyTerm extends BaseTerm
             return sprintf('%s', $term->Name);
         };
 
-        $termsDecorator = $termsDecorator ? : $plaintextDecorator;
+        $termsDecorator = $termsDecorator ?: $plaintextDecorator;
 
         // hierarchy parts that will be joined together with the levels separator, decorated via a callback if defined
         $parts = array_map($termsDecorator, array_reverse($this->getAncestors()->toArray()));
@@ -927,8 +928,8 @@ class TaxonomyTerm extends BaseTerm
      *
      * The list is grouped by the alt term class, such as (e.g. EquivalentAltTerm, LanguageAltTerm etc.)
      *
-     * @return array
      * @throws \ReflectionException
+     * @return array
      */
     public function getAllAlternativeTermsGroupedByType(): array
     {
@@ -938,7 +939,6 @@ class TaxonomyTerm extends BaseTerm
 
             // find the first has_one field as each alternative term needs a reverse relation to this class
             foreach (Config::inst()->get($altTermClass, 'has_one') as $field => $taxonomyTermClass) {
-
                 if (is_a($taxonomyTermClass, self::class, true)) {
                     if (!array_key_exists($altTermClass, $groups)) {
                         $groups[$altTermClass] = [];
@@ -1040,8 +1040,8 @@ class TaxonomyTerm extends BaseTerm
      * Get a list of lists of alternative terms associated to this term for a term rich-info overview
      *
      * @param string $delimiter
-     * @return DBHTMLText
      * @throws \ReflectionException
+     * @return DBHTMLText
      */
     public function getAllAlternativeTermsNames(string $delimiter = '<br />'): DBHTMLText
     {
@@ -1281,8 +1281,8 @@ class TaxonomyTerm extends BaseTerm
     /**
      * Get a list of all objects tagged with this taxonomy term
      *
-     * @return ArrayList
      * @throws \ReflectionException
+     * @return ArrayList
      */
     public function getTaggedDataObjects(): ArrayList
     {
@@ -1317,7 +1317,7 @@ class TaxonomyTerm extends BaseTerm
                                 foreach ($mmtMaps as $mmtMap) {
                                     $owner = $item->{$mmtMap['ownerAccessor']}();
                                     if ($owner && $owner->exists() && $owner->ClassName === $mmtMap['ownerClass']) {
-                                        $fieldName    = $mmtMap['relation'];
+                                        $fieldName = $mmtMap['relation'];
                                         $relationName = 'many_many_through';
 
                                         break;
@@ -1325,8 +1325,8 @@ class TaxonomyTerm extends BaseTerm
                                     $owner = null;
                                 }
                             } else {
-                                $owner        = $item;
-                                $fieldName    = $field;
+                                $owner = $item;
+                                $fieldName = $field;
                                 $relationName = $relation;
                             }
 
