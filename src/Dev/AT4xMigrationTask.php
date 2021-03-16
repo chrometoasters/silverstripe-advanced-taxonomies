@@ -66,7 +66,7 @@ class AT4xMigrationTask extends BuildTask
         }
 
         $versionedFields = array_keys(Config::inst()->get(Versioned::class, 'db_for_versions_table'));
-        $termTableFields = array_keys($schema->databaseFields(TaxonomyTerm::class, false));
+        $termTableFields = DB::query(sprintf('SHOW COLUMNS FROM "%s"', $termTable))->column();
 
         DB::get_conn()->withTransaction(function () use ($schema, $termTable, $termTableFields, $versionedFields) {
 
