@@ -295,6 +295,8 @@ class BaseObject extends DataObject implements PermissionProvider
     {
         parent::requireDefaultRecords();
 
-        AT4xMigrationTask::migrate();
+        if (static::class === self::class) {
+            AT4xMigrationTask::migrate();
+        }
     }
 }
