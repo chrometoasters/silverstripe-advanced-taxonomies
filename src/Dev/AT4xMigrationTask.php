@@ -60,8 +60,11 @@ class AT4xMigrationTask extends BuildTask
         $baseObjectsCount = DB::query(sprintf('SELECT COUNT(1) FROM "%s"', $baseObjectTable))->value();
         $baseTermsCount   = DB::query(sprintf('SELECT COUNT(1) FROM "%s"', $baseTermTable))->value();
 
-        // Skip migration if all tables have the same number of records
-        if (($termsCount === $baseObjectsCount) && ($termsCount == $baseTermsCount)) {
+        // Skip migration when BaseObject or BaseTerm have any data in them
+        if ($baseObjectsCount || $baseTermsCount) {
+            DB::get_schema()->alterationMessage("BaseObject or BaseTerm table already contains data, skipping the migration.", 'notice');
+            DB::get_schema()->alterationMessage('If you want disable the migration completely and hide this message, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
+
             return;
         }
 
