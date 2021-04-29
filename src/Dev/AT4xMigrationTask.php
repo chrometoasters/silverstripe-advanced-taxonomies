@@ -64,7 +64,7 @@ class AT4xMigrationTask extends BuildTask
         // Skip migration when BaseObject or BaseTerm have any data in them
         if ($baseObjectsCount || $baseTermsCount) {
             DB::get_schema()->alterationMessage("BaseObject or BaseTerm table already contains data, skipping the migration.", 'notice');
-            DB::get_schema()->alterationMessage('If you want disable the migration completely and hide this message, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
+            DB::get_schema()->alterationMessage('If you want to disable the migration completely and hide this message, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
 
             return;
         }
@@ -72,7 +72,7 @@ class AT4xMigrationTask extends BuildTask
         // Skip migration if there's no data at all
         if (($baseObjectsCount == $baseTermsCount) && ($baseObjectsCount == $termsCount) && ($baseObjectsCount == 0)) {
             DB::get_schema()->alterationMessage("There's no data to migrate, skipping the migration.", 'notice');
-            DB::get_schema()->alterationMessage('If you want disable the migration completely and hide this message, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
+            DB::get_schema()->alterationMessage('If you want to disable the migration completely, e.g. for fresh installs, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
 
             return;
         }
