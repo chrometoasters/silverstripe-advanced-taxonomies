@@ -21,6 +21,7 @@ class AT4xMigrationTask extends BuildTask
 
     protected $description = 'Migrate AT db data from version 3.x to version 4.x';
 
+    protected $basicFields = ['ID', 'RecordID', 'Version'];
 
     /**
      * Static run wrapper with a dummy request
@@ -68,6 +69,14 @@ class AT4xMigrationTask extends BuildTask
             return;
         }
 
+        // Skip migration if there's no data at all
+        if (($baseObjectsCount == $baseTermsCount) && ($baseObjectsCount == $termsCount) && ($baseObjectsCount == 0)) {
+            DB::get_schema()->alterationMessage("There's no data to migrate, skipping the migration.", 'notice');
+            DB::get_schema()->alterationMessage('If you want disable the migration completely and hide this message, set AT4xMigrationTask::enable_v4_migration to false.', 'notice');
+
+            return;
+        }
+
         $versionedFields = array_keys(Config::inst()->get(Versioned::class, 'db_for_versions_table'));
         $termTableFields = DB::query(sprintf('SHOW COLUMNS FROM "%s"', $termTable))->column();
 
@@ -93,9 +102,22 @@ class AT4xMigrationTask extends BuildTask
                         if (get_parent_class($model) === DataObject::class) {
                             array_push($dbFields, ...$versionedFields);
                         } else {
-                            array_push($dbFields, 'RecordID', 'Version');
+                            array_push($dbFields, ...$this->basicFields);
                         }
                     }
+
+
+                    $currentTermTableFields = DB::query(sprintf('SHOW COLUMNS FROM "%s"', $termTable . $dbTableSuffix))->column();
+                    $dbFieldsDiff = array_intersect(array_unique($dbFields), $currentTermTableFields);
+
+                    // if there are no columns to migrate, i.e. if the only fields are the basic versioning related field
+                    // and an ID, skip the table for the current model
+                    if (empty($dbFieldsDiff) || empty(array_diff($dbFieldsDiff, $this->basicFields)) || ($dbFieldsDiff == ['ID'])) {
+                        DB::get_schema()->alterationMessage(sprintf('No column data to migrate to %s table.', $dbTable), 'notice');
+
+                        continue;
+                    }
+
 
                     DB::get_schema()->alterationMessage(sprintf('Migrating data to %s table.', $dbTable), 'changed');
 
