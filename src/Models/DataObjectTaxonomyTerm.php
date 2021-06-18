@@ -49,4 +49,22 @@ class DataObjectTaxonomyTerm extends DataObject
             }
         }
     }
+
+
+    /**
+     * Ensure the linking object is published to Live stage after writing the owner object that doesn't have versioning.
+     */
+    public function onAfterWrite()
+    {
+        parent::onAfterWrite();
+
+        // explicit comparison to false as using ! may not be obvious enough in this case
+        if ($this->OwnerObject() && $this->OwnerObject()->hasExtension(Versioned::class) === false) {
+            if (Versioned::get_stage() === Versioned::DRAFT) {
+                if ($this->canPublish()) {
+                    $this->doPublish();
+                }
+            }
+        }
+    }
 }
