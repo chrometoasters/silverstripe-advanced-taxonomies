@@ -52,7 +52,23 @@ class DataObjectTaxonomyTerm extends DataObject
 
 
     /**
-     * Ensure the linking object is published to Live stage after writing the owner object that doesn't have versioning.
+     * Ensure the linking object is deleted from Draft when it's deleted from Live for a non-versioned owner object
+     */
+    public function onAfterDelete()
+    {
+        if ($this->OwnerObject() && $this->OwnerObject()->hasExtension(Versioned::class) === false) {
+            if (Versioned::get_stage() === Versioned::LIVE) {
+                Versioned::withVersionedMode(function () {
+                    Versioned::set_stage(Versioned::DRAFT);
+                    $this->delete();
+                });
+            }
+        }
+    }
+
+
+    /**
+     * Ensure the linking object is published to Live stage after writing a non-versioned owner object
      */
     public function onAfterWrite()
     {
