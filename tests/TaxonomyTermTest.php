@@ -519,6 +519,87 @@ class TaxonomyTermTest extends SapphireTest
 
 
     /**
+     * Test a non-versioned model correctly adds and removes versioned tags in both draft and live stages
+     */
+    public function testNonVersionedOwnerObject()
+    {
+        $origStage = Versioned::get_stage();
+
+        // Start in draft mode
+        Versioned::set_stage(Versioned::DRAFT);
+
+        // Remove extension
+        OwnerObject::remove_extension(Versioned::class);
+
+        $object6 = $this->objFromFixture(OwnerObject::class, 'object6');
+        $this->assertFalse($object6->hasExtension(Versioned::class));
+
+        $this->assertEquals(
+            0,
+            $object6->Tags()->count(),
+            'The object for testing non-versioned owner has 0 terms assigned'
+        );
+
+        $rootTerm1 = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm1');
+        $rootTerm2 = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm2');
+
+        $object6->Tags()->add($rootTerm1);
+        $object6->Tags()->add($rootTerm2);
+
+        $this->assertEquals(
+            2,
+            $object6->Tags()->count(),
+            'The object for testing non-versioned owner has 2 terms assigned in draft'
+        );
+
+        // Set live mode where non-versioned objects should always be visible
+        Versioned::set_stage(Versioned::LIVE);
+
+        $this->assertEquals(
+            2,
+            $object6->Tags()->count(),
+            'The object for testing non-versioned owner has 2 terms assigned in live'
+        );
+
+        // Remove one of the terms in live mode
+        $object6->Tags()->remove($rootTerm1);
+
+        // Set draft mode where the term deleted in live should be also gone
+        Versioned::set_stage(Versioned::DRAFT);
+
+        $this->assertEquals(
+            1,
+            $object6->Tags()->count(),
+            'The object for testing non-versioned owner has 1 term assigned in draft after first term removed in live'
+        );
+        $this->assertEquals(
+            $rootTerm2->ID,
+            $object6->Tags()->first()->ID,
+            'The object for testing non-versioned owner has only term 2 assigned in draft after term 1 removed in live'
+        );
+
+        // Set live mode where non-versioned objects should always be visible
+        Versioned::set_stage(Versioned::LIVE);
+
+        $this->assertEquals(
+            1,
+            $object6->Tags()->count(),
+            'The object for testing non-versioned owner still has 1 term assigned in live'
+        );
+        $this->assertEquals(
+            $rootTerm2->ID,
+            $object6->Tags()->first()->ID,
+            'The object for testing non-versioned owner still has only term 2 assigned in live'
+        );
+
+        // Restore the orig archived stage
+        if ($origStage) {
+            Versioned::set_stage($origStage);
+        }
+    }
+
+
+    /**
      * Test when a RequiredTypes loop exists, e.g
      * 1. TypeZ requires TypeY,
      * 2. TypeY requires TypeX,
