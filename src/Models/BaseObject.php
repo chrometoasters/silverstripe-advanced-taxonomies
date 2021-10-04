@@ -67,7 +67,7 @@ class BaseObject extends DataObject implements PermissionProvider
     /**
      * Get a text from the translations system for a given identifier
      *
-     * Looks up the string for the extending/current class and uses this class strings as a fallback.
+     * Looks up the string for the extending/current class and recursively uses the parent class strings as a fallback.
      * Supports sprintf evaluation of extra params to replace in the text.
      *
      * @param string $identifier
@@ -75,7 +75,13 @@ class BaseObject extends DataObject implements PermissionProvider
      */
     protected function _t(string $identifier, ...$params): string
     {
-        $text = trim(trim(_t(static::class . '.' . $identifier)) ?: _t(self::class . '.' . $identifier));
+        $class = static::class;
+        $text  = '';
+
+        while (!$text && $class !== DataObject::class) {
+            $text  = trim(_t($class . '.' . $identifier));
+            $class = get_parent_class($class);
+        }
 
         return sprintf($text, ...$params);
     }

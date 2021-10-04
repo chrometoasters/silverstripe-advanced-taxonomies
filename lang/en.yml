@@ -8,6 +8,7 @@ en:
     URLSegment: "A unique identifier used by the CMS (e.g. in URL filter parameters), which must be unique across all terms, taxonomies, concept classes. It will be automatically generated from <i><b>Name</b></i>, if left blank. Use lower case, URL-safe characters, no spaces. Avoid parentheses. Required."
     Title: "This singular term is displayed to the public — often as a tag. The <i><b>Display name singular</b></i> will be the same or similar to the <i><b>Name</b></i> (though possibly longer) and will be automatically generated from the <i><b>Name</b></i>, if left blank. Avoid parentheses. Required."
     TitlePlural: "This term is displayed to the public when the context requires a pluralised label. It will be automatically generated from <i><b>Name</b></i>, if left blank. Avoid parentheses. Required."
+    TitleCustom: "When provided, the custom display name overrides both singular and plural display names when displayed to the public."
     Description: "The short reference description shown within the CMS"
     AuthorDefinition: "Shown to authors and admins; a brief definition about the purpose of the term for those who create and edit taxonomies."
     PublicDefinition: "Shown to users on the front-end; a brief definition of the term for those who view taxonomy terms as tags or filters."
