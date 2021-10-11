@@ -21,6 +21,7 @@ use SilverStripe\Forms\GridField\GridFieldFilterHeader;
 use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\OptionsetField;
+use SilverStripe\Forms\TextField;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
@@ -51,10 +52,20 @@ class TaxonomyTerm extends BaseTerm
 
     private static $plural_name = 'Taxonomies';
 
+    public const INHERIT = 'INHERIT';
+
+    public const SINGULAR = 'SINGULAR';
+
+    public const PLURAL = 'PLURAL';
+
+    public const CUSTOM = 'CUSTOM';
+
     private static $db = [
         'SingleSelect'             => 'Boolean(0)',
         'InternalOnly'             => 'Boolean(0)',
         'RequiredTypesInheritRoot' => 'Boolean(1)',
+        // configuration which field will be used as the source to display as the term on the front-end
+        'DisplayNameSourceFieldConf' => 'Varchar(20)',
     ];
 
     private static $indexes = [
@@ -101,8 +112,9 @@ class TaxonomyTerm extends BaseTerm
     ];
 
     private static $defaults = [
-        'InternalOnly'             => 0,
-        'RequiredTypesInheritRoot' => 1,
+        'InternalOnly'               => 0,
+        'RequiredTypesInheritRoot'   => 1,
+        'DisplayNameSourceFieldConf' => self::INHERIT,
     ];
 
     private static $field_labels = [
@@ -128,6 +140,13 @@ class TaxonomyTerm extends BaseTerm
         'getTypeNameWithFlags'        => 'Type',
         'getAllRequiredTypesNames'    => 'Requires',
         'getAllAlternativeTermsNames' => 'Alternative terms',
+    ];
+
+    private static $displayNameSourceFieldConfOptions = [
+        self::INHERIT  => 'Is determined by the parent taxonomy type',
+        self::SINGULAR => 'Singlular',
+        self::PLURAL   => 'Plural',
+        self::CUSTOM   => 'Custom',
     ];
 
 
@@ -194,6 +213,24 @@ class TaxonomyTerm extends BaseTerm
 
         // Define a reusable literal field that represents an empty line
         $lineBreak = LiteralField::create('LineBreak', '<br />');
+
+        // Exclude options that don't apply to taxonomy types (root-level terms)
+        $displayNameSourceFieldConfOptions = self::$displayNameSourceFieldConfOptions;
+        if (!$this->ParentID) {
+            unset($displayNameSourceFieldConfOptions[self::INHERIT]);
+            unset($displayNameSourceFieldConfOptions[self::CUSTOM]);
+        }
+
+        $fields->addFieldsToTab('Root.Main', [
+            OptionsetField::create('DisplayNameSourceFieldConf', 'Display name presented to the public', $displayNameSourceFieldConfOptions),
+        ], 'Description');
+
+        if ($this->ParentID) {
+            $fields->addFieldsToTab('Root.Main', [
+                $customTitleField = TextField::create('TitleCustom', 'Display name custom')->setDescription($this->_t('TitleCustom'))
+            ], 'Description');
+            $customTitleField->displayIf('DisplayNameSourceFieldConf')->isEqualTo(self::CUSTOM);
+        }
 
         // Tweak InternalOnly
         if ($this->ParentID) {
@@ -966,19 +1003,24 @@ class TaxonomyTerm extends BaseTerm
 
 
     /**
-     * Get a field from the most relevant Language Alternative term (either by the locale, the primary flag)
+     * Get a field from the most relevant Language Alternative term (either by the locale or the primary flag)
      *
-     * When no suitable alt term is found this term is used as the fallback
+     * When no field name is provided, the term uses its preferred/configured display name (singular/plural/custom).
+     * When no suitable alt term is found this term is used as the fallback.
      *
      * Note: No return type is specified due to the nature of how Silverstripe works with db fields.
      *
-     * @param string $field
-     * @param string $locale
+     * @param string|null $fieldName
+     * @param string|null $locale
      * @return mixed|DataObject|DBField|null
      */
-    public function LanguageAltTermField(string $field, string $locale = '')
+    public function LanguageAltTermField(string $fieldName = null, string $locale = null)
     {
         $langTerms = $this->LanguageAltTerms();
+
+        if (!$fieldName) {
+            $fieldName = $this->getDisplayNameSourceField();
+        }
 
         if ($locale) {
             $filter = ['Locale' => $locale];
@@ -991,7 +1033,21 @@ class TaxonomyTerm extends BaseTerm
             $term = $this;
         }
 
-        return $term && $term->hasField($field) ? $term->getField($field) : null;
+        return $term && $term->hasField($fieldName) ? $term->getField($fieldName) : null;
+    }
+
+
+    /**
+     * Get the display name of the most relevant Language Alternative term (either by the locale or the primary flag)
+     *
+     * Note: This is a shorthand for LanguageAltTermField method.
+     *
+     * @param string|null $locale
+     * @return mixed|DataObject|DBField|null
+     */
+    public function LanguageAltTerm(string $locale = null)
+    {
+        return $this->LanguageAltTermField('', $locale);
     }
 
 
@@ -1376,5 +1432,52 @@ class TaxonomyTerm extends BaseTerm
         $termEditURL = $linkedURL . rtrim(implode('', array_reverse($subURL)), '/') . '/edit?#' . $landingTab;
 
         return sprintf('<a href="%s" target="_blank" class="at-link-external">%s</a>', $termEditURL, $this->Name);
+    }
+
+
+    /**
+     * Ensure a sensible default for DisplayNameSourceFieldConf
+     *
+     * @return string
+     */
+    public function getDisplayNameSourceFieldConf(): string
+    {
+        if ($displayTitle = $this->getField('DisplayNameSourceFieldConf')) {
+            return $displayTitle;
+        }
+
+        if ($this->ParentID) {
+            return self::INHERIT;
+        }
+
+        return self::SINGULAR;
+    }
+
+
+    /**
+     * Get the name of the DB field that will be used to source the display title for the term/tag
+     *
+     * @return string
+     */
+    public function getDisplayNameSourceField(): string
+    {
+        switch ($this->getDisplayNameSourceFieldConf()) {
+            case self::INHERIT:
+                $type = $this->Type();
+                // ID check to prevent infinite recursion since type returns itself as its type
+                if ($type && $type->exists() && $type->ID !== $this->ID) {
+                    return $type->getDisplayNameSourceField();
+                }
+
+                return 'Title';
+            case self::SINGULAR:
+                return 'Title';
+            case self::PLURAL:
+                return 'TitlePlural';
+            case self::CUSTOM:
+                return 'TitleCustom';
+            default:
+                return 'Title';
+        }
     }
 }

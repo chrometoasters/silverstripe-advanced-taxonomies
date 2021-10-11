@@ -22,6 +22,7 @@ class BaseTerm extends BaseObject
     private static $db = [
         'Title'            => 'Varchar(255)',
         'TitlePlural'      => 'Varchar(255)',
+        'TitleCustom'      => 'Varchar(255)', // used from TaxonomyTerm, but data-wise belongs here
         'Description'      => 'Text',
         'AuthorDefinition' => 'Text',
         'PublicDefinition' => 'Text',
@@ -66,6 +67,7 @@ class BaseTerm extends BaseObject
         $this->i18nDisableWarning();
 
         $fields = parent::getCMSFields();
+        $fields->removeByName(['TitleCustom']); // field is used from TaxonomyTerm level only
 
         // Add description to fields
         $fields->datafieldByName('Title')->setDescription($this->_t('Title'));
