@@ -115,6 +115,8 @@ Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject:
     Title: 'Data object 4'
   object5:
     Title: 'Data object 5'
+  object6:
+    Title: 'Data object 6'
 
 
 Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm:
