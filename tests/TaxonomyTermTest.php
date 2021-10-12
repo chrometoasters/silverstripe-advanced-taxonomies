@@ -599,6 +599,32 @@ class TaxonomyTermTest extends SapphireTest
     }
 
 
+    public function testDisplayNameSourceFieldConfigurations() {
+        // Root-level
+        $term4 = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm4');
+
+        // Tier 1 terms
+        $term41 = $this->objFromFixture(TaxonomyTerm::class, 'level1Term4p1');
+        $term42 = $this->objFromFixture(TaxonomyTerm::class, 'level1Term4p2');
+
+        // Tier 2 terms
+        $term411 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p1p1');
+        $term412 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p1p2');
+        $term421 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p2p1');
+        $term422 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p2p2');
+
+        // Assertions
+        $this->assertEquals('Title', $term4->getDisplayNameSourceField(), 'Root level taxonomy term has configure default value "SINGULAR"');
+        $this->assertEquals('Tag4p1s', $term41->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p1 as "PLURAL" is respected');
+        $this->assertEquals('CustomisedTag4p2', $term42->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p2 as "CUSTOM" is respected');
+
+        $this->assertEquals('Tag4p1p1', $term411->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p1p1 as "INHERIT" is respected and get configuation from its root-level type term');
+        $this->assertEquals('Tag4p1p2', $term412->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p1p2 as "SINGULAR" is respected');
+        $this->assertEquals('Tag4p2p1s', $term421->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p2p1 as "PLURAL" is respected');
+        $this->assertEquals('CustomisedTag4p2p2', $term422->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term 4p2p2 as "CUSTOM" is respected');
+    }
+
+
     /**
      * Test when a RequiredTypes loop exists, e.g
      * 1. TypeZ requires TypeY,
