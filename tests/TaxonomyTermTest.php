@@ -622,6 +622,7 @@ class TaxonomyTermTest extends SapphireTest
         $this->assertEquals('CustomisedTag4p2', $term42->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level1Term4p2 as "CUSTOM" is respected');
 
         // Assertions on terms at tier 2 level
+        $this->assertEquals('Title', $term411->getDisplayNameSourceField(), 'Non-root level taxonomy term has configure default value "INHERIT"');
         $this->assertEquals('Level 2 term 4.1.1', $term411->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p1p1 as "INHERIT" is respected and get configuation from its root-level type term');
         $this->assertEquals('Level 2 term 4.1.2', $term412->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p1p2 as "SINGULAR" is respected');
         $this->assertEquals('Level 2 term 4.2.1s', $term421->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p2p1 as "PLURAL" is respected');

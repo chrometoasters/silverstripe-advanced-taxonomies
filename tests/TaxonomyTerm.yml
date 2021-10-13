@@ -74,7 +74,6 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     Name: "Level 2 term 4.1.1"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
     PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
-    DisplayNameSourceFieldConf: "INHERIT"
 
   level2Term4p1p2:
     Name: "Level 2 term 4.1.2"
