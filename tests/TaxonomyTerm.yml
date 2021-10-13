@@ -60,7 +60,6 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     RequiredTypesInheritRoot: false
     OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1,
                          =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
-    TitlePlural: "Tag4p1s"
     DisplayNameSourceFieldConf: "PLURAL"
 
   level1Term4p2:
@@ -75,13 +74,11 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     Name: "Level 2 term 4.1.1"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
     PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
-    Title: "Tag4p1p1"
     DisplayNameSourceFieldConf: "INHERIT"
 
   level2Term4p1p2:
     Name: "Level 2 term 4.1.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
-    Title: "Tag4p1p2"
     DisplayNameSourceFieldConf: "SINGULAR"
 
   level2Term4p2p1:
@@ -89,7 +86,6 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p2
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
                    =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
-    TitlePlural: "Tag4p2p1s"
     DisplayNameSourceFieldConf: "PLURAL"
 
   level2Term4p2p2:
