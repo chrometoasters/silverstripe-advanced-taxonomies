@@ -60,12 +60,15 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
     RequiredTypesInheritRoot: false
     OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1,
                          =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
+    DisplayNameSourceFieldConf: "PLURAL"
 
   level1Term4p2:
     Name: "Level 1 term 4.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm4
     PrimaryConceptClass: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc1
     OtherConceptClasses: =>Chrometoaster\AdvancedTaxonomies\Models\ConceptClass.cc2
+    TitleCustom: "CustomisedTag4p2"
+    DisplayNameSourceFieldConf: "CUSTOM"
 
   level2Term4p1p1:
     Name: "Level 2 term 4.1.1"
@@ -75,16 +78,20 @@ Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm:
   level2Term4p1p2:
     Name: "Level 2 term 4.1.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p1
+    DisplayNameSourceFieldConf: "SINGULAR"
 
   level2Term4p2p1:
     Name: "Level 2 term 4.2.1"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p2
     RequiredTypes: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm1,
                    =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.rootTerm2
+    DisplayNameSourceFieldConf: "PLURAL"
 
   level2Term4p2p2:
     Name: "Level 2 term 4.2.2"
     Parent: =>Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm.level1Term4p2
+    TitleCustom: "CustomisedTag4p2p2"
+    DisplayNameSourceFieldConf: "CUSTOM"
 
   typeX:
     Name: "Root term X that will require Type Z"

@@ -599,6 +599,37 @@ class TaxonomyTermTest extends SapphireTest
     }
 
 
+    public function testDisplayNameSourceFieldConfigurations() {
+        // Root-level
+        $term4 = $this->objFromFixture(TaxonomyTerm::class, 'rootTerm4');
+
+        // Level 1 terms
+        $term41 = $this->objFromFixture(TaxonomyTerm::class, 'level1Term4p1');
+        $term42 = $this->objFromFixture(TaxonomyTerm::class, 'level1Term4p2');
+
+        // Level 2 terms
+        $term411 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p1p1');
+        $term412 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p1p2');
+        $term421 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p2p1');
+        $term422 = $this->objFromFixture(TaxonomyTerm::class, 'level2Term4p2p2');
+
+        // Assertions on Root-level terms
+        $this->assertEquals('Title', $term4->getDisplayNameSourceField(), 'Root level taxonomy term has configure default value "SINGULAR"');
+        $this->assertEquals('Root term 4', $term4->LanguageAltTerm(), 'DisplayNameSourceFieldConf for rootTerm4 as "SINGULAR" is respected');
+
+        // Assertions on terms at level 1
+        $this->assertEquals('Level 1 term 4.1s', $term41->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level1Term4p1 as "PLURAL" is respected');
+        $this->assertEquals('CustomisedTag4p2', $term42->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level1Term4p2 as "CUSTOM" is respected');
+
+        // Assertions on terms at level 2
+        $this->assertEquals('Title', $term411->getDisplayNameSourceField(), 'Non-root level taxonomy term has configure default value "INHERIT"');
+        $this->assertEquals('Level 2 term 4.1.1', $term411->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p1p1 as "INHERIT" is respected and get configuation from its root-level type term');
+        $this->assertEquals('Level 2 term 4.1.2', $term412->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p1p2 as "SINGULAR" is respected');
+        $this->assertEquals('Level 2 term 4.2.1s', $term421->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p2p1 as "PLURAL" is respected');
+        $this->assertEquals('CustomisedTag4p2p2', $term422->LanguageAltTerm(), 'DisplayNameSourceFieldConf for term level2Term4p2p2 as "CUSTOM" is respected');
+    }
+
+
     /**
      * Test when a RequiredTypes loop exists, e.g
      * 1. TypeZ requires TypeY,
