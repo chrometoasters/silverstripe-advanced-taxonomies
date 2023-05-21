@@ -231,9 +231,10 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
             // provide description for different combination of states from the lang file
             $singleSelectDescription = _t(
                 static::class
-                . '.SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '') . '_Description'
-            );
-            $singleSelectField->setDescription(sprintf($singleSelectDescription, $taggedClass));
+                . '.SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '') . '_Description',
+                null,
+                ['taggedClass' => $taggedClass]);
+            $singleSelectField->setDescription($singleSelectDescription);
         }
 
 
