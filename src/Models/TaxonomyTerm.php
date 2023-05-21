@@ -143,7 +143,7 @@ class TaxonomyTerm extends DataObject implements PermissionProvider
         $fields->removeByName('DataObjectTaxonomyTerms');
 
         // Begin to use _t(), first disable 'missing_default_warning', which allows _t() to be called without default
-        i18n::config()->update('missing_default_warning', false);
+        i18n::config()->merge('missing_default_warning', false);
 
         // Define a literalField that presents empty line , and could be reused in many occasionz.
         $lineBreak = LiteralField::create('LineBreak', '<br />');
