@@ -19,13 +19,12 @@
     "issues": "http://github.com/chrometoasters/silverstripe-advanced-taxonomies/issues"
   },
   "require": {
-    "php": "^7.3 || ^8.0",
-    "silverstripe/admin": "^1",
-    "silverstripe/framework": "^4",
-    "silverstripe/versioned": "^1",
-    "silverstripe/vendor-plugin": "^1",
-    "symbiote/silverstripe-gridfieldextensions": "^3.2.3",
-    "unclecheese/display-logic": "^2.0"
+    "php": "^8",
+    "silverstripe/admin": "^2",
+    "silverstripe/framework": "^5",
+    "silverstripe/versioned": "^2",
+    "symbiote/silverstripe-gridfieldextensions": "^4",
+    "unclecheese/display-logic": "^3"
   },
   "extra": {
     "expose": [
