@@ -93,7 +93,7 @@ class BaseObject extends DataObject implements PermissionProvider
     protected function i18nDisableWarning(): void
     {
         $this->i18nMissingDefaultWarning = i18n::config()->get('missing_default_warning');
-        i18n::config()->update('missing_default_warning', false);
+        i18n::config()->merge('missing_default_warning', [false]);
     }
 
 
@@ -102,7 +102,7 @@ class BaseObject extends DataObject implements PermissionProvider
      */
     protected function i18nRestoreWarningConfig(): void
     {
-        i18n::config()->update('missing_default_warning', $this->i18nMissingDefaultWarning);
+        i18n::config()->merge('missing_default_warning', [$this->i18nMissingDefaultWarning]);
     }
 
 
