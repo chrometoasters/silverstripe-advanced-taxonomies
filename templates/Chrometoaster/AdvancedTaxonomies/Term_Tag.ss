@@ -28,7 +28,7 @@
 
             <% if $AllRequiredTypes %>
                 <br><br>
-                <b>Required taxonomies</b>: <% loop $AllRequiredTypes %>{$Name}<% if not $Last %>, <% end_if %><% end_loop %>
+                <b>Required taxonomies</b>: <% loop $AllRequiredTypes %>{$Name}<% if not $IsLast %>, <% end_if %><% end_loop %>
             <% end_if %>
 
             <% if $AllAlternativeTermsNames %>
@@ -44,7 +44,7 @@
                 <% end_if %>
                 <% if $Others %>
                     <br>
-                    <b>Other concept classes</b>: <% loop $Others %>{$Name}<% if not $Last %>, <% end_if %><% end_loop %>
+                    <b>Other concept classes</b>: <% loop $Others %>{$Name}<% if not $IsLast %>, <% end_if %><% end_loop %>
                 <% end_if %>
             <% end_with %><% end_if %>
         </span>
