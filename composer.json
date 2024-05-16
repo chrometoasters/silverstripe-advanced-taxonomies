@@ -19,10 +19,10 @@
     "issues": "http://github.com/chrometoasters/silverstripe-advanced-taxonomies/issues"
   },
   "require": {
-    "silverstripe/admin": "^1",
-    "silverstripe/framework": "^4",
-    "silverstripe/vendor-plugin": "^1",
-    "symbiote/silverstripe-gridfieldextensions": "^3.2.3"
+    "silverstripe/admin": "^2",
+    "silverstripe/framework": "^5",
+    "silverstripe/vendor-plugin": "^2",
+    "symbiote/silverstripe-gridfieldextensions": "^4"
   },
   "extra": {
     "expose": [

@@ -30,7 +30,7 @@ class GridFieldInfoLink implements GridField_HTMLProvider
      *
      * @var string
      */
-    protected $caption;
+    protected $label;
 
 
     /**
