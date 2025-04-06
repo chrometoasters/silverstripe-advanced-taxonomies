@@ -29,7 +29,7 @@ class FieldsProvider
      * @param string $sortField
      * @return GridFieldConfig
      */
-    public static function getTaggingGridFieldConfig(DataList $searchList = null, array $extraDisplayFields = [], string $sortField = 'Sort'): GridFieldConfig
+    public static function getTaggingGridFieldConfig(?DataList $searchList = null, array $extraDisplayFields = [], string $sortField = 'Sort'): GridFieldConfig
     {
         $gfc = GridFieldConfig_RelationEditor::create();
 

@@ -129,9 +129,10 @@ class TaxonomyRulesValidator extends RequiredFields
      * Return error message describing the terms involved, or an empty string where there are no errors.
      *
      * @param SS_List $tags
+     * @param callable|null $termDecorator
      * @return string
      */
-    public function validateSingleSelectTypes(SS_List $tags, callable $termDecorator = null): string
+    public function validateSingleSelectTypes(SS_List $tags, ?callable $termDecorator = null): string
     {
         // default decorator if none is provided
         $quotedNameDecorator = function (TaxonomyTerm $term) {
@@ -208,7 +209,7 @@ class TaxonomyRulesValidator extends RequiredFields
      * @param callable|null $termsDecorator
      * @return string
      */
-    public function validateRequiredTypes(SS_List $tags, callable $typesDecorator = null, callable $termsDecorator = null): string
+    public function validateRequiredTypes(SS_List $tags, ?callable $typesDecorator = null, ?callable $termsDecorator = null): string
     {
         // default decorators if none is provided
         $quotedNameDecorator = function (TaxonomyTerm $term) {

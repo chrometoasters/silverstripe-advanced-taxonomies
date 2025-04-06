@@ -779,9 +779,10 @@ class TaxonomyTerm extends BaseTerm
      * 2. "myName" if it is a root term
      *
      * @param string $separator
+     * @param callable|null $termsDecorator
      * @return string
      */
-    public function getTermHierarchy(string $separator = ' ▸ ', callable $termsDecorator = null)
+    public function getTermHierarchy(string $separator = ' ▸ ', ?callable $termsDecorator = null)
     {
         // default decorator if none is provided
         $plaintextDecorator = function (TaxonomyTerm $term) {
@@ -1003,6 +1004,20 @@ class TaxonomyTerm extends BaseTerm
 
 
     /**
+     * Get the display name of the most relevant Language Alternative term (either by the locale or the primary flag)
+     *
+     * Note: This is a shorthand for LanguageAltTermField method.
+     *
+     * @param string|null $locale
+     * @return mixed|DataObject|DBField|null
+     */
+    public function LanguageAltTerm(?string $locale = null)
+    {
+        return $this->LanguageAltTermField('', $locale);
+    }
+
+
+    /**
      * Get a field from the most relevant Language Alternative term (either by the locale or the primary flag)
      *
      * When no field name is provided, the term uses its preferred/configured display name (singular/plural/custom).
@@ -1014,7 +1029,7 @@ class TaxonomyTerm extends BaseTerm
      * @param string|null $locale
      * @return mixed|DataObject|DBField|null
      */
-    public function LanguageAltTermField(string $fieldName = null, string $locale = null)
+    public function LanguageAltTermField(?string $fieldName = null, ?string $locale = null)
     {
         $langTerms = $this->LanguageAltTerms();
 
@@ -1034,20 +1049,6 @@ class TaxonomyTerm extends BaseTerm
         }
 
         return $term && $term->hasField($fieldName) ? $term->getField($fieldName) : null;
-    }
-
-
-    /**
-     * Get the display name of the most relevant Language Alternative term (either by the locale or the primary flag)
-     *
-     * Note: This is a shorthand for LanguageAltTermField method.
-     *
-     * @param string|null $locale
-     * @return mixed|DataObject|DBField|null
-     */
-    public function LanguageAltTerm(string $locale = null)
-    {
-        return $this->LanguageAltTermField('', $locale);
     }
 
 
@@ -1168,7 +1169,7 @@ class TaxonomyTerm extends BaseTerm
      * @param SS_List|null $terms
      * @return DataList
      */
-    public static function getSingleSelectOnlyTypes(SS_List $terms = null): DataList
+    public static function getSingleSelectOnlyTypes(?SS_List $terms = null): DataList
     {
         $singleSelectTypes = self::get()->filter(['ParentID' => 0, 'SingleSelect' => true]);
 
