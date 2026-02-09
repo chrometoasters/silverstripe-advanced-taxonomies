@@ -7,7 +7,7 @@
     "taxonomy",
     "advanced taxonomies"
   ],
-  "homepage": "http://github.com/chrometoasters/silverstripe-advanced-taxonomies",
+  "homepage": "https://github.com/chrometoasters/silverstripe-advanced-taxonomies",
   "license": "BSD-3-Clause",
   "authors": [
     {
@@ -16,15 +16,15 @@
     }
   ],
   "support": {
-    "issues": "http://github.com/chrometoasters/silverstripe-advanced-taxonomies/issues"
+    "issues": "https://github.com/chrometoasters/silverstripe-advanced-taxonomies/issues"
   },
   "require": {
     "php": "^8",
-    "silverstripe/admin": "^2",
-    "silverstripe/framework": "^5",
-    "silverstripe/versioned": "^2",
-    "symbiote/silverstripe-gridfieldextensions": "^4",
-    "unclecheese/display-logic": "^3"
+    "silverstripe/admin": "^3",
+    "silverstripe/framework": "^6",
+    "silverstripe/versioned": "^3",
+    "symbiote/silverstripe-gridfieldextensions": "^5",
+    "unclecheese/display-logic": "^4"
   },
   "extra": {
     "expose": [
