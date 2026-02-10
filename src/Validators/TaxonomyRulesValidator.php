@@ -3,12 +3,12 @@
 namespace Chrometoaster\AdvancedTaxonomies\Validators;
 
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
-use SilverStripe\Forms\RequiredFields;
+use SilverStripe\Core\Validation\ValidationResult;
+use SilverStripe\Forms\Validation\RequiredFieldsValidator;
+use SilverStripe\Model\List\SS_List;
 use SilverStripe\ORM\DataList;
-use SilverStripe\ORM\SS_List;
-use SilverStripe\ORM\ValidationResult;
 
-class TaxonomyRulesValidator extends RequiredFields
+class TaxonomyRulesValidator extends RequiredFieldsValidator
 {
     /**
      * Instance variable to indicate if output message allows containing HTML
@@ -43,7 +43,7 @@ class TaxonomyRulesValidator extends RequiredFields
     public function php($data)
     {
         // validate the required fields attached to the Validator
-        $valid = parent::php($data);
+        $valid = null;
 
         // list of validations errors for taxonomy terms
         $errors = [];
@@ -53,7 +53,7 @@ class TaxonomyRulesValidator extends RequiredFields
 
         // validate taxonomies' rules if there are any terms to be assigned
         if (isset($data['Tags']) && !empty($data['Tags'])) {
-            $tags = TaxonomyTerm::get()->filterAny('ID', $data['Tags']);
+            $tags = TaxonomyTerm::get()->filterAny(['ID' => $data['Tags']]);
 
             // validate SingleSelect logic — see method's doc block for the possible output formats
             $singleSelectValidationError = $this->validateSingleSelectTypes($tags, ...$this->getValidationMessagesDecorators());
@@ -98,7 +98,7 @@ class TaxonomyRulesValidator extends RequiredFields
      * @return array|bool
      * @internal
      */
-    private function _validateSingleSelectTypes(SS_List $tags)
+    private function validateSingleSelectTypesRule(SS_List $tags)
     {
         // output array in the format of 'single select taxonomy type' => 'tags of this type from the validated list'
         $singleSelectTypesWithMultipleTerms = [];
@@ -135,17 +135,15 @@ class TaxonomyRulesValidator extends RequiredFields
     public function validateSingleSelectTypes(SS_List $tags, ?callable $termDecorator = null): string
     {
         // default decorator if none is provided
-        $quotedNameDecorator = function (TaxonomyTerm $term) {
-            return sprintf('"%s"', $term->Name);
-        };
+        $quotedNameDecorator = (fn (TaxonomyTerm $term) => sprintf('"%s"', $term->Name));
 
         $termDecorator = $termDecorator ?: $quotedNameDecorator;
 
         // see the methods docblock for its output format
-        $singleSelectValidation = $this->_validateSingleSelectTypes($tags);
+        $singleSelectValidation = $this->validateSingleSelectTypesRule($tags);
         if ($singleSelectValidation !== true) {
             $typeTermNames = [];
-            foreach ($singleSelectValidation as $typeID => $typeTerms) {
+            foreach ($singleSelectValidation as $typeTerms) {
                 $typeTermNames[] = ' either ' . implode(', or ', array_map($termDecorator, $typeTerms->toArray()));
             }
 
@@ -169,7 +167,7 @@ class TaxonomyRulesValidator extends RequiredFields
      * @return array|bool
      * @internal
      */
-    private function _validateRequiredTypes(SS_List $tags)
+    private function validateRequiredTypesRule(SS_List $tags)
     {
         $requiredTypeIDs               = [];
         $termsWithRequiredTypesMissing = [];
@@ -189,7 +187,7 @@ class TaxonomyRulesValidator extends RequiredFields
 
         if (count($requiredTypeIDs) || count($termsWithRequiredTypesMissing)) {
             return [
-                'furtherRequiredTypes'         => TaxonomyTerm::get()->filterAny('ID', $requiredTypeIDs),
+                'furtherRequiredTypes'         => TaxonomyTerm::get()->filterAny(['ID' => $requiredTypeIDs]),
                 'termsWithRequiredTypesNotMet' => $tags->filterAny('ID', array_unique($termsWithRequiredTypesMissing)),
             ];
         }
@@ -212,14 +210,12 @@ class TaxonomyRulesValidator extends RequiredFields
     public function validateRequiredTypes(SS_List $tags, ?callable $typesDecorator = null, ?callable $termsDecorator = null): string
     {
         // default decorators if none is provided
-        $quotedNameDecorator = function (TaxonomyTerm $term) {
-            return sprintf('"%s"', $term->Name);
-        };
+        $quotedNameDecorator = (fn (TaxonomyTerm $term) => sprintf('"%s"', $term->Name));
 
         $typesDecorator = $typesDecorator ?: $quotedNameDecorator;
         $termsDecorator = $termsDecorator ?: $quotedNameDecorator;
 
-        $requiredTypesValidation = $this->_validateRequiredTypes($tags); // see method's docblock for its output format
+        $requiredTypesValidation = $this->validateRequiredTypesRule($tags); // see method's docblock for its output format
         if ($requiredTypesValidation !== true) {
 
             /** @var DataList $requiredTypes */
@@ -263,12 +259,8 @@ class TaxonomyRulesValidator extends RequiredFields
     {
         // create term decorators for HTML-enabled validation output
         if ($this->enableHTMLOutput) {
-            $termsDecorator = function (TaxonomyTerm $term) {
-                return sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_Terms'));
-            };
-            $termsDecoratorRequired = function (TaxonomyTerm $term) {
-                return sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_RequiredTypes'));
-            };
+            $termsDecorator = (fn (TaxonomyTerm $term) => sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_Terms')));
+            $termsDecoratorRequired = (fn (TaxonomyTerm $term) => sprintf('<b>%s</b>', $term->getModelAdminEditLink('Root_RequiredTypes')));
         } else {
             $termsDecorator = $termsDecoratorRequired = null;
         }

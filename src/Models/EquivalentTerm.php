@@ -25,6 +25,7 @@ class EquivalentTerm extends AlternativeTerm
      * @var string[]
      */
     private static $db = [
+        // phpcs:ignore Generic.Files.LineLength
         'EquivalentType' => "Enum('acronym, abbreviation, synonym, concatenation, shortened version, extended version, regional variation, lexical variation, alternative spelling, colloquialism, slang, jargon, shorthand', 'synonym')",
     ];
 

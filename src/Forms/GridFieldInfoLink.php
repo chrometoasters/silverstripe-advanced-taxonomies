@@ -4,7 +4,7 @@ namespace Chrometoaster\AdvancedTaxonomies\Forms;
 
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridField_HTMLProvider;
-use SilverStripe\View\ArrayData;
+use SilverStripe\Model\ArrayData;
 
 /**
  * A button that contains a link to additional information

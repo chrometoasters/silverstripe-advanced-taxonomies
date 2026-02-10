@@ -2,13 +2,13 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
+use SilverStripe\Core\Validation\ValidationException;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\LiteralField;
-use SilverStripe\ORM\ArrayList;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\SS_List;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
-use SilverStripe\ORM\SS_List;
-use SilverStripe\ORM\ValidationException;
 use SilverStripe\Versioned\Versioned;
 
 class ConceptClass extends BaseObject
@@ -43,7 +43,7 @@ class ConceptClass extends BaseObject
             // Add info text about assigning terms to concept classes
             $fields->addFieldToTab(
                 'Root.Main',
-                LiteralField::create('Info', '<p class="message notice">' . $this->_t('Info') . '</p>')
+                LiteralField::create('Info', '<p class="message notice">' . $this->translate('Info') . '</p>')
             );
 
             $this->i18nRestoreWarningConfig();
@@ -184,8 +184,7 @@ class ConceptClass extends BaseObject
 
         foreach ($this->getDefaultConceptClasses() as $name) {
             if ($name) {
-                $existingRecord = self::get()
-                    ->filter('Name', $name)
+                $existingRecord = self::get()->filter(['Name' => $name])
                     ->first();
 
                 if (!$existingRecord) {

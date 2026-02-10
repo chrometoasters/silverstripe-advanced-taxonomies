@@ -6,9 +6,10 @@ use Chrometoaster\AdvancedTaxonomies\Models\AssociativeRelationType;
 use Chrometoaster\AdvancedTaxonomies\Models\ConceptClass;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Admin\ModelAdmin;
+use SilverStripe\Forms\Form;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
-use SilverStripe\ORM\SS_List;
+use SilverStripe\Model\List\SS_List;
 use SilverStripe\View\Requirements;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 
@@ -48,7 +49,7 @@ class TaxonomyModelAdmin extends ModelAdmin
         if ($this->modelClass === TaxonomyTerm::class) {
             $list = parent::getList();
 
-            return $list->filter('ParentID', '0');
+            return $list->filter(['ParentID' => '0']);
         }
 
         return parent::getList();
@@ -60,7 +61,7 @@ class TaxonomyModelAdmin extends ModelAdmin
      *
      * @param null $id
      * @param null $fields
-     * @return \SilverStripe\Forms\Form
+     * @return Form
      */
     public function getEditForm($id = null, $fields = null)
     {

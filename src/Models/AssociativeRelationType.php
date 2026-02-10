@@ -2,10 +2,11 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
-use SilverStripe\Forms\RequiredFields;
+use SilverStripe\Core\Validation\ValidationException;
+use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\Validation\RequiredFieldsValidator;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
-use SilverStripe\ORM\ValidationException;
 
 class AssociativeRelationType extends DataObject
 {
@@ -51,7 +52,7 @@ class AssociativeRelationType extends DataObject
 
 
     /**
-     * @return \SilverStripe\Forms\FieldList
+     * @return FieldList
      */
     public function getCMSFields()
     {
@@ -65,11 +66,11 @@ class AssociativeRelationType extends DataObject
 
 
     /**
-     * @return RequiredFields
+     * @return RequiredFieldsValidator
      */
-    public function getCMSValidator(): RequiredFields
+    public function getCMSValidator(): RequiredFieldsValidator
     {
-        return RequiredFields::create(['LabelLeft']);
+        return RequiredFieldsValidator::create(['LabelLeft']);
     }
 
 
@@ -114,7 +115,8 @@ class AssociativeRelationType extends DataObject
                             return true;
                         }
                     } else {
-                        if ($this->LabelRight === $defaultAssociativeRelationType[1]
+                        if (
+                            $this->LabelRight === $defaultAssociativeRelationType[1]
                             && $this->LabelLeft === $defaultAssociativeRelationType[0]
                         ) {
                             return true;
@@ -122,14 +124,16 @@ class AssociativeRelationType extends DataObject
                     }
                 } else {
                     if (isset($defaultAssociativeRelationType[1]) && $defaultAssociativeRelationType[1]) {
-                        if ($this->LabelRight === $defaultAssociativeRelationType[1]
+                        if (
+                            $this->LabelRight === $defaultAssociativeRelationType[1]
                             && $this->LabelLeft === $defaultAssociativeRelationType[0]
                             && (int) $this->IsSymmetric === (int) $defaultAssociativeRelationType[2]
                         ) {
                             return true;
                         }
                     } else {
-                        if ($this->LabelLeft === $defaultAssociativeRelationType[0]
+                        if (
+                            $this->LabelLeft === $defaultAssociativeRelationType[0]
                             && (int) $this->IsSymmetric === (int) $defaultAssociativeRelationType[2]
                         ) {
                             return true;

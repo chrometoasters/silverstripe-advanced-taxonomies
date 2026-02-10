@@ -2,10 +2,10 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
-use SilverStripe\Admin\LeftAndMainExtension;
+use SilverStripe\Core\Extension;
 use SilverStripe\View\Requirements;
 
-class LeftAndMainTaxonomyExtension extends LeftAndMainExtension
+class LeftAndMainTaxonomyExtension extends Extension
 {
     public function init()
     {

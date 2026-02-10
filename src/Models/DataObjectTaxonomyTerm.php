@@ -58,7 +58,7 @@ class DataObjectTaxonomyTerm extends DataObject
     {
         if ($this->OwnerObject() && $this->OwnerObject()->hasExtension(Versioned::class) === false) {
             if (Versioned::get_stage() === Versioned::LIVE) {
-                Versioned::withVersionedMode(function () {
+                Versioned::withVersionedMode(function (): void {
                     Versioned::set_stage(Versioned::DRAFT);
                     $this->delete();
                 });

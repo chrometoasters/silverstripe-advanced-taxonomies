@@ -29,8 +29,11 @@ class FieldsProvider
      * @param string $sortField
      * @return GridFieldConfig
      */
-    public static function getTaggingGridFieldConfig(?DataList $searchList = null, array $extraDisplayFields = [], string $sortField = 'Sort'): GridFieldConfig
-    {
+    public static function getTaggingGridFieldConfig(
+        ?DataList $searchList = null,
+        array $extraDisplayFields = [],
+        string $sortField = 'Sort'
+    ): GridFieldConfig {
         $gfc = GridFieldConfig_RelationEditor::create();
 
         // Remove config components from the Tags gridfield to disallow adding/deleting/archiving taxonomy terms from here
@@ -52,7 +55,7 @@ class FieldsProvider
 
         $gfc->addComponents([
             GridFieldOrderableRows::create($sortField),
-            $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left'),
+            $addExisting = GridFieldAddTagsAutocompleter::create('buttons-before-left'),
             new GridFieldInfoLink('buttons-before-left', '/at-taxonomy-overview', "Open 'All taxonomies' overview"),
         ]);
 

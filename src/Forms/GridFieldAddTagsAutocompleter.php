@@ -8,7 +8,7 @@ use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridField_FormAction;
 use SilverStripe\Forms\GridField\GridFieldAddExistingAutocompleter;
 use SilverStripe\Forms\TextField;
-use SilverStripe\View\ArrayData;
+use SilverStripe\Model\ArrayData;
 use SilverStripe\View\SSViewer;
 
 class GridFieldAddTagsAutocompleter extends GridFieldAddExistingAutocompleter
@@ -30,15 +30,18 @@ class GridFieldAddTagsAutocompleter extends GridFieldAddExistingAutocompleter
         $dataClass = $gridField->getModelClass();
 
         $forTemplate         = new ArrayData([]);
-        $forTemplate->Fields = new FieldList();
+        $forTemplate->Fields = FieldList::create();
 
-        $searchField = new TextField('gridfield_relationsearch', _t('SilverStripe\\Forms\\GridField\\GridField.RelationSearch', 'Relation search'));
+        $searchField = TextField::create(
+            'gridfield_relationsearch',
+            _t('SilverStripe\\Forms\\GridField\\GridField.RelationSearch', 'Relation search')
+        );
 
         $searchField->setAttribute('data-search-url', Controller::join_links($gridField->Link('search')));
         $searchField->setAttribute('placeholder', $this->getPlaceholderText($dataClass));
         $searchField->addExtraClass('relation-search no-change-track action_gridfield_relationsearch');
 
-        $findAction = new GridField_FormAction(
+        $findAction = GridField_FormAction::create(
             $gridField,
             'gridfield_relationfind',
             _t('SilverStripe\\Forms\\GridField\\GridField.Find', 'Find'),
@@ -48,20 +51,14 @@ class GridFieldAddTagsAutocompleter extends GridFieldAddExistingAutocompleter
         $findAction->setAttribute('data-icon', 'relationfind');
         $findAction->addExtraClass('action_gridfield_relationfind');
 
-        $addAction = new GridField_FormAction(
-            $gridField,
-            'gridfield_relationadd',
-            $this->getButtonText(),
-            'addto',
-            'addto'
-        );
+        $addAction = GridField_FormAction::create($gridField, 'gridfield_relationadd', $this->getButtonText(), 'addto', 'addto');
         $addAction->setAttribute('data-icon', 'chain--plus');
         $addAction->addExtraClass('btn btn-outline-secondary font-icon-link action_gridfield_relationadd');
 
         // If an object is not found, disable the action
-//        if (!is_int($gridField->State->GridFieldAddRelation(null))) {
-//            $addAction->setReadonly(true);
-//        }
+        //        if (!is_int($gridField->State->GridFieldAddRelation(null))) {
+        //            $addAction->setReadonly(true);
+        //        }
 
         $forTemplate->Fields->push($searchField);
         $forTemplate->Fields->push($findAction);
@@ -70,7 +67,7 @@ class GridFieldAddTagsAutocompleter extends GridFieldAddExistingAutocompleter
             $forTemplate->Fields->setForm($form);
         }
 
-        $template = SSViewer::get_templates_by_class($this, '', __CLASS__);
+        $template = SSViewer::get_templates_by_class($this, '', self::class);
 
         return [
             $this->targetFragment => $forTemplate->renderWith($template),

@@ -3,8 +3,9 @@
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
 use Chrometoaster\AdvancedTaxonomies\Generators\URLSegmentGenerator;
+use RuntimeException;
 use SilverStripe\Forms\FieldList;
-use SilverStripe\Forms\RequiredFields;
+use SilverStripe\Forms\Validation\RequiredFieldsValidator;
 use SilverStripe\i18n\i18n;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Security\Permission;
@@ -72,7 +73,7 @@ class BaseObject extends DataObject implements PermissionProvider
      * @param string $identifier
      * @return string
      */
-    protected function _t(string $identifier, ...$params): string
+    protected function translate(string $identifier, ...$params): string
     {
         $class = static::class;
         $text  = '';
@@ -116,8 +117,8 @@ class BaseObject extends DataObject implements PermissionProvider
         $fields->removeByName('Sort'); // using orderable rows in gridfields
 
         // Add description to fields
-        $fields->datafieldByName('Name')->setDescription($this->_t('Name'));
-        $fields->dataFieldByName('URLSegment')->setDescription($this->_t('URLSegment'));
+        $fields->datafieldByName('Name')->setDescription($this->translate('Name'));
+        $fields->dataFieldByName('URLSegment')->setDescription($this->translate('URLSegment'));
 
         $this->i18nRestoreWarningConfig();
 
@@ -126,11 +127,11 @@ class BaseObject extends DataObject implements PermissionProvider
 
 
     /**
-     * @return RequiredFields
+     * @return RequiredFieldsValidator
      */
     public function getCMSValidator()
     {
-        return RequiredFields::create(['Name']);
+        return RequiredFieldsValidator::create(['Name']);
     }
 
 
@@ -144,12 +145,10 @@ class BaseObject extends DataObject implements PermissionProvider
     public static function getBySlug($slug, int $parentID = 0)
     {
         if (is_string($slug)) {
-            $slug = array_filter(explode('/', $slug), function ($item) {
-                return mb_strlen($item);
-            });
+            $slug = array_filter(explode('/', $slug), fn ($item) => mb_strlen((string) $item));
         }
         if (!is_array($slug)) {
-            throw new \RuntimeException('$slug must be a string or an array.');
+            throw new RuntimeException('$slug must be a string or an array.');
         }
 
         $urlSegment = array_shift($slug);
