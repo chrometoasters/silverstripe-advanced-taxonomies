@@ -103,7 +103,7 @@ class TaxonomyRulesValidator extends RequiredFieldsValidator
         // output array in the format of 'single select taxonomy type' => 'tags of this type from the validated list'
         $singleSelectTypesWithMultipleTerms = [];
 
-        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($tags)->column('ID');
+        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($tags)->columnUnique('ID');
 
         if (count($singleSelectTypeIDs)) {
             foreach ($singleSelectTypeIDs as $typeID) {
@@ -175,15 +175,15 @@ class TaxonomyRulesValidator extends RequiredFieldsValidator
         // get IDs of all required types for each tag in the list
         // record each tag that requires types that were not satisfied
         foreach ($tags as $tag) {
-            $tagRequiredTypeIDs = $tag->getAllRequiredTypes()->column('ID');
-            if (count($tagRequiredTypeIDs) && !empty(array_diff($tagRequiredTypeIDs, $tags->column('TypeID')))) {
+            $tagRequiredTypeIDs = $tag->getAllRequiredTypes()->columnUnique('ID');
+            if (count($tagRequiredTypeIDs) && !empty(array_diff($tagRequiredTypeIDs, $tags->columnUnique('TypeID')))) {
                 $termsWithRequiredTypesMissing[] = $tag->ID;
                 $requiredTypeIDs                 = array_merge($tagRequiredTypeIDs, $requiredTypeIDs);
             }
         }
 
         // get a list of required type IDs that we don't have in the list yet
-        $requiredTypeIDs = array_diff(array_unique($requiredTypeIDs), $tags->column('TypeID'));
+        $requiredTypeIDs = array_diff(array_unique($requiredTypeIDs), $tags->columnUnique('TypeID'));
 
         if (count($requiredTypeIDs) || count($termsWithRequiredTypesMissing)) {
             return [

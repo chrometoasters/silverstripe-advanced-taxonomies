@@ -65,15 +65,15 @@ class ConceptClass extends BaseObject
         if ($this->exists()) {
             // Get all terms where this concept class is assigned as primary
             $termsWherePrimary = TaxonomyTerm::get()->filter(['PrimaryConceptClassID' => $this->ID]);
-            $termIDs[]         = $termsWherePrimary->column('ID');
+            $termIDs[]         = $termsWherePrimary->columnUnique('ID');
 
             // Get all terms where this concept class is assigned as primary to their type
-            $typeIDsWherePrimary = (clone $termsWherePrimary)->filter(['ParentID' => 0])->column('ID');
+            $typeIDsWherePrimary = (clone $termsWherePrimary)->filter(['ParentID' => 0])->columnUnique('ID');
             if (count($typeIDsWherePrimary)) {
                 $termsWherePrimaryForType = TaxonomyTerm::get()
                     ->filter(['ParentID:not' => 0, 'PrimaryConceptClassID' => 0, 'TypeID' => $typeIDsWherePrimary]);
 
-                $termIDs[] = $termsWherePrimaryForType->column('ID');
+                $termIDs[] = $termsWherePrimaryForType->columnUnique('ID');
             }
         }
 
@@ -89,7 +89,7 @@ class ConceptClass extends BaseObject
     private function getTermIDsWhereOther(): array
     {
         if ($this->exists()) {
-            return TaxonomyTerm::get()->filter(['OtherConceptClasses.ID' => $this->ID])->column('ID');
+            return TaxonomyTerm::get()->filter(['OtherConceptClasses.ID' => $this->ID])->columnUnique('ID');
         }
 
         return [];
