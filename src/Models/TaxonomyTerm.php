@@ -3,6 +3,7 @@
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldConfig_TagsRelationEditor;
 use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
 use Generator;
@@ -408,16 +409,9 @@ class TaxonomyTerm extends BaseTerm
         if ($gridRequiredTypes) {
             // Remove RequiredTypes' GridField
             $gridRequiredTypes->setTitle('');
-            $config = $gridRequiredTypes->getConfig();
-            $config
-                ->removeComponentsByType(GridFieldAddNewButton::class)
-                ->removeComponentsByType(GridFieldArchiveAction::class)
-                ->removeComponentsByType(GridFieldEditButton::class)
-                ->removeComponentsByType(GridFieldAddExistingAutocompleter::class)
-                ->addComponent(
-                    $addExisting = GridFieldAddTagsAutocompleter::create('buttons-before-left')
-                );
 
+            $config = GridFieldConfig_TagsRelationEditor::create();
+            $addExisting = $config->getComponentByType(GridFieldAddTagsAutocompleter::class);
             $addExisting->setPlaceholderText('Add taxonomies by name')->setButtonText('Add taxonomy');
 
             // Not to confuse user, we are not going to show the RequiredTypes in this GridField, which is to show all
@@ -431,6 +425,8 @@ class TaxonomyTerm extends BaseTerm
             // Only make root terms available as RequiredTypes, disable to link the type itself as the RequiredTypes
             $searchList = self::get()->filter(['ParentID' => 0])->exclude(['ID' => $this->ID]);
             $addExisting->setSearchList($searchList);
+
+            $gridRequiredTypes->setConfig($config);
         }
 
         // Change the Tab RequiredTypes' label
@@ -520,18 +516,7 @@ class TaxonomyTerm extends BaseTerm
             $associatedGridField = $fields->dataFieldByName('AssociatedTerms');
 
             if (AssociativeRelationType::get()->count()) {
-                $associatedGridConfig = $associatedGridField->getConfig();
-                $associatedGridConfig->removeComponentsByType([
-                    GridFieldAddNewButton::class,
-                    GridFieldDataColumns::class,
-                    GridFieldEditButton::class,
-                    GridFieldArchiveAction::class,
-                    GridFieldAddExistingAutocompleter::class,
-                ]);
-                $associatedGridConfig->addComponents([
-                    GridFieldAddExistingAutocompleter::create('buttons-before-left'),
-                    GridFieldOrderableRows::create('Sort'),
-                ]);
+                $associatedGridConfig = GridFieldConfig_TagsRelationEditor::create();
 
                 // Make the GridField editable inline per row by GridFieldEditableColumns
                 $associatedGridConfig->addComponent($editableColumns = GridFieldEditableColumns::create());
@@ -555,6 +540,7 @@ class TaxonomyTerm extends BaseTerm
                         'getNameAsTag' => 'Associated taxonomy term',
                     ]
                 );
+                $associatedGridField->setConfig($associatedGridConfig);
             } else {
                 $fields->removeFieldFromTab('Root.AssociatedTerms', 'AssociatedTerms');
 
