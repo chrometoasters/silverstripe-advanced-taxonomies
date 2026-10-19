@@ -486,7 +486,7 @@ class TaxonomyTermTest extends SapphireTest
         $rootTerm1FromLive = TaxonomyTerm::get()->byID($rootTerm1->ID);
         $this->assertNull($rootTerm1FromLive, 'rootTerm1 doesn\'t exist on Live table');
 
-        $object1->doPublish();
+        $object1->publishRecursive();
         $object1FromLive = OwnerObject::get()->byID($object1->ID);
         $this->assertNotNull($object1FromLive, 'object1 exists on Live table after being published');
         $rootTerm1FromLive = TaxonomyTerm::get()->byID($rootTerm1->ID);
