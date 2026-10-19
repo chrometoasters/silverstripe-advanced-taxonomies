@@ -1,0 +1,197 @@
+# Continuous integration for the cms5-compat line of Advanced Taxonomies
+# (Silverstripe CMS 5.4, PHP 8.3).
+#
+# Two jobs run in parallel: a PHP syntax lint of src and tests, and the
+# module's PHPUnit suite. The suite runs the way a site loads the module: a
+# throwaway CMS 5.4 project (silverstripe/recipe-cms ^5.4) installs it from
+# this checkout as a path repository, runs PHPUnit 9 over the installed copy of
+# tests/ against a MySQL 8.0 service, then builds the database.
+#
+# Jobs run on ubuntu-24.04 rather than ubuntu-latest, so the image cannot move
+# under the PHP version. GitHub's own actions follow their major version; the
+# one third-party action is pinned to a commit, with its release in the
+# trailing comment.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - cms5-compat
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per branch or pull request; a new push cancels the run it supersedes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # PHP syntax over the module's own code. Nothing else is installed.
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # Installed globally, so the job needs no project. Its bin directory goes
+      # on PATH explicitly, wherever Composer chose to put its home.
+      - name: Install parallel-lint
+        run: |
+          composer global require --no-interaction --no-progress 'php-parallel-lint/php-parallel-lint:^1.4'
+          composer global config bin-dir --absolute --quiet >> "$GITHUB_PATH"
+
+      - name: Lint PHP syntax
+        run: parallel-lint --colors src tests
+
+  # The PHPUnit suite inside a CMS 5.4 project. The job connects to MySQL as
+  # root; SapphireTest creates and drops its own temporary databases. Any
+  # failure or error fails the job.
+  phpunit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: module
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: intl, gd, mysqli, pdo_mysql
+          tools: composer
+          coverage: none
+        env:
+          fail-fast: true
+
+      # The project requires the module at any dev version, so the checkout's
+      # branch or detached merge ref does not matter; everything else installs
+      # at stable versions. The path repository symlinks the checkout into
+      # vendor/: a copy would be made through the module's .gitattributes,
+      # whose export-ignore rules leave tests/ out. Advisory blocking is off:
+      # every CMS 5 framework release now carries a Packagist security
+      # advisory, and with blocking on Composer either refuses the install or
+      # falls back to the unreleased 5.4.x-dev branch.
+      - name: Create the CMS 5.4 project
+        run: |
+          mkdir project
+          cat > project/composer.json <<'EOF'
+          {
+            "name": "chrometoaster/advanced-taxonomies-ci",
+            "type": "project",
+            "repositories": [
+              {
+                "type": "path",
+                "url": "../module",
+                "options": {
+                  "symlink": true
+                }
+              }
+            ],
+            "require": {
+              "silverstripe/recipe-cms": "^5.4",
+              "chrometoaster/silverstripe-advanced-taxonomies": "*@dev"
+            },
+            "require-dev": {
+              "phpunit/phpunit": "^9.6"
+            },
+            "config": {
+              "policy": {
+                "advisories": {
+                  "block": false
+                }
+              },
+              "allow-plugins": {
+                "composer/installers": true,
+                "silverstripe/recipe-plugin": true,
+                "silverstripe/vendor-plugin": true
+              }
+            }
+          }
+          EOF
+          cat > project/phpunit.xml <<'EOF'
+          <phpunit bootstrap="vendor/silverstripe/framework/tests/bootstrap.php" colors="true">
+            <testsuites>
+              <testsuite name="advanced-taxonomies">
+                <directory>vendor/chrometoaster/silverstripe-advanced-taxonomies/tests</directory>
+              </testsuite>
+            </testsuites>
+          </phpunit>
+          EOF
+          # Throwaway values for this job's MySQL service, not secrets.
+          cat > project/.env <<'EOF'
+          SS_ENVIRONMENT_TYPE=dev
+          SS_DATABASE_CLASS=MySQLDatabase
+          SS_DATABASE_SERVER=127.0.0.1
+          SS_DATABASE_USERNAME=root
+          SS_DATABASE_PASSWORD=root
+          SS_DATABASE_NAME=at_ci
+          SS_ERROR_LOG=silverstripe.log
+          EOF
+
+      - name: Locate the Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      # No lock file to hash: the key moves with the module's composer.json,
+      # and a restore from an older key only seeds the download cache.
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-cms5-${{ hashFiles('module/composer.json') }}
+          restore-keys: ${{ runner.os }}-composer-cms5-
+
+      - name: Install Composer dependencies
+        working-directory: project
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Show the installed module and recipe
+        working-directory: project
+        run: |
+          for package in silverstripe/recipe-cms silverstripe/framework chrometoaster/silverstripe-advanced-taxonomies; do
+            composer show "$package" | grep -E '^(name|versions|source|dist)'
+          done
+
+      # PHPUnit runs before dev/build: a flushed dev/build caches a class
+      # manifest without the test classes, which PHPUnit would then reuse, so
+      # the suite's TestOnly owner object would lose its configuration.
+      - name: PHPUnit
+        working-directory: project
+        run: vendor/bin/phpunit
+
+      # The module's tables and config build against an empty database. Runs
+      # even when PHPUnit fails, so one run reports both.
+      - name: Build the database
+        if: ${{ !cancelled() }}
+        working-directory: project
+        run: vendor/bin/sake dev/build flush=1
+
+      - name: Show the log
+        if: ${{ failure() || cancelled() }}
+        working-directory: project
+        run: |
+          if [ -f silverstripe.log ]; then
+            cat silverstripe.log
+          fi

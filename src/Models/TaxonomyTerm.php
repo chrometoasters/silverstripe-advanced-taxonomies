@@ -680,7 +680,7 @@ class TaxonomyTerm extends BaseTerm
 
             if (ClassInfo::hasTable($tableName)) {
                 // table exists
-                $termIDs            = $typeTerms->column('ID');
+                $termIDs            = $typeTerms->columnUnique('ID');
                 $termIDPlaceholders = DB::placeholders($termIDs);
 
                 $typeTaggedClasses = SQLSelect::create(
@@ -929,8 +929,8 @@ class TaxonomyTerm extends BaseTerm
         // get a unique list of required type IDs
         $termRequiredTypeIDs = array_unique(
             array_merge(
-                $this->Type()->RequiredTypes()->column('ID'),
-                $this->RequiredTypes()->column('ID')
+                $this->Type()->RequiredTypes()->columnUnique('ID'),
+                $this->RequiredTypes()->columnUnique('ID')
             )
         );
 
@@ -955,7 +955,7 @@ class TaxonomyTerm extends BaseTerm
      */
     public function getAllRequiredTypesNames(string $delimiter = '<br />'): DBHTMLText
     {
-        $names = $this->getAllRequiredTypes()->column('Name');
+        $names = $this->getAllRequiredTypes()->columnUnique('Name');
 
         return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
     }
@@ -1174,7 +1174,7 @@ class TaxonomyTerm extends BaseTerm
         $singleSelectTypes = self::get()->filter(['ParentID' => 0, 'SingleSelect' => true]);
 
         if ($terms) {
-            $termsTypeIDs = array_unique($terms->column('TypeID'));
+            $termsTypeIDs = $terms->columnUnique('TypeID');
             if (count($termsTypeIDs)) {
                 // a narrow down list of types based on the list of terms provided
                 return $singleSelectTypes->filterAny('ID', $termsTypeIDs);

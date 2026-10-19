@@ -78,7 +78,7 @@ class DataObjectTaxonomyTerm extends DataObject
         if ($this->OwnerObject() && $this->OwnerObject()->hasExtension(Versioned::class) === false) {
             if (Versioned::get_stage() === Versioned::DRAFT) {
                 if ($this->canPublish()) {
-                    $this->doPublish();
+                    $this->publishRecursive();
                 }
             }
         }

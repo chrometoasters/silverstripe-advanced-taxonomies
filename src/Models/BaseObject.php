@@ -68,22 +68,28 @@ class BaseObject extends DataObject implements PermissionProvider
      * Get a text from the translations system for a given identifier
      *
      * Looks up the string for the extending/current class and recursively uses the parent class strings as a fallback.
-     * Supports sprintf evaluation of extra params to replace in the text.
+     * Extra params are injected into the text in order, as {param0}, {param1} and so on.
      *
      * @param string $identifier
+     * @param mixed ...$params
      * @return string
      */
     protected function _t(string $identifier, ...$params): string
     {
-        $class = static::class;
-        $text  = '';
+        $class     = static::class;
+        $text      = '';
+        $injection = [];
+
+        foreach (array_values($params) as $index => $param) {
+            $injection['param' . $index] = $param;
+        }
 
         while (!$text && $class !== DataObject::class) {
-            $text  = trim(_t($class . '.' . $identifier));
+            $text  = trim(_t($class . '.' . $identifier, $injection));
             $class = get_parent_class($class);
         }
 
-        return sprintf($text, ...$params);
+        return $text;
     }
 
 
