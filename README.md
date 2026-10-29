@@ -61,8 +61,11 @@ segments under different parents).
 
 ## Requirements
 
-* SilverStripe 4.x
-* PHP ^7.3 (PHP8 not tested)
+* Silverstripe CMS 6
+* PHP 8.3 or later
+
+For Silverstripe CMS 5, use the 5.x releases. For Silverstripe CMS 4, use the 4.0.0 alpha releases
+(`composer require chrometoaster/silverstripe-advanced-taxonomies:^4.0@alpha`).
 
 ## Installation
 

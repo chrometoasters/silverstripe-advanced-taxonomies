@@ -4,7 +4,8 @@ namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Core\Config\Config;
-use SilverStripe\ORM\DataExtension;
+use SilverStripe\Core\Extension;
+use SilverStripe\Core\Validation\ValidationException;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Versioned\Versioned;
 
@@ -24,7 +25,7 @@ use SilverStripe\Versioned\Versioned;
  *
  * The terms are added by their full-path-like url slugs.
  */
-class DefaultTermsDataExtension extends DataExtension
+class DefaultTermsDataExtension extends Extension
 {
     private static $db = [
         'DefaultTermsInitialised' => 'Boolean(0)',
@@ -34,12 +35,10 @@ class DefaultTermsDataExtension extends DataExtension
     /**
      * Hook into onBeforeWrite
      *
-     * @throws \SilverStripe\ORM\ValidationException
+     * @throws ValidationException
      */
     public function onBeforeWrite()
     {
-        parent::onBeforeWrite();
-
         $this->linkDefaultTaxonomyTerms();
     }
 
@@ -47,7 +46,7 @@ class DefaultTermsDataExtension extends DataExtension
     /**
      * Link taxonomy terms if they can be found
      *
-     * @throws \SilverStripe\ORM\ValidationException
+     * @throws ValidationException
      */
     private function linkDefaultTaxonomyTerms()
     {
@@ -67,7 +66,10 @@ class DefaultTermsDataExtension extends DataExtension
                                 $owner->{$termsRelation . 'ID'} = $term->ID;
                             }
                             // has_many or many_many
-                        } elseif (DataObject::getSchema()->hasManyComponent($owner, $termsRelation) || DataObject::getSchema()->manyManyComponent($owner, $termsRelation)) {
+                        } elseif (
+                            DataObject::getSchema()->hasManyComponent($owner, $termsRelation) ||
+                            DataObject::getSchema()->manyManyComponent($owner, $termsRelation)
+                        ) {
                             foreach ($termSlugs as $termSlug) {
                                 $term = TaxonomyTerm::getBySlug($termSlug);
                                 if ($term) {

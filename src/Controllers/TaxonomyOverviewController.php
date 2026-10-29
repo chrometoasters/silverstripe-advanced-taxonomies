@@ -5,7 +5,7 @@ namespace Chrometoaster\AdvancedTaxonomies\Controllers;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
-use SilverStripe\View\ArrayData;
+use SilverStripe\Model\ArrayData;
 
 /**
  * Class TaxonomyDirectoryController
@@ -25,19 +25,16 @@ class TaxonomyOverviewController extends Controller
 
     /**
      * Render a hierarchy
-     *
-     * @param HTTPRequest $request
-     * @return \SilverStripe\ORM\FieldType\DBHTMLText
      */
     public function index(HTTPRequest $request)
     {
         $parentID = (int) $request->param('ParentID'); // empty param is the same as 0 for the sake of this report
 
-        $terms = TaxonomyTerm::get()->filter(['ParentID' => $parentID]);
+        $terms = TaxonomyTerm::get()->setUseCache(true)->filter(['ParentID' => $parentID]);
 
         $parentTerm = null;
         if ($parentID) {
-            $parentTerm = TaxonomyTerm::get()->byID($parentID);
+            $parentTerm = TaxonomyTerm::get()->setUseCache(true)->byID($parentID);
         }
 
         return $this->customise(ArrayData::create([

@@ -93,7 +93,7 @@ class PluralGenerator
     {
 
         // For singular and plural are the same
-        if (in_array(mb_strtolower($string), self::$uncountable)) {
+        if (in_array(mb_strtolower((string) $string), self::$uncountable)) {
             return $string;
         }
 
@@ -102,15 +102,15 @@ class PluralGenerator
         foreach (self::$irregular as $pattern => $result) {
             $pattern = '/' . $pattern . '$/i';
 
-            if (preg_match($pattern, $string)) {
-                return preg_replace($pattern, $result, $string);
+            if (preg_match($pattern, (string) $string)) {
+                return preg_replace($pattern, (string) $result, (string) $string);
             }
         }
 
         // Check for matches using regular expressions
         foreach (self::$plural as $pattern => $result) {
-            if (preg_match($pattern, $string)) {
-                return preg_replace($pattern, $result, $string);
+            if (preg_match($pattern, (string) $string)) {
+                return preg_replace($pattern, (string) $result, (string) $string);
             }
         }
 

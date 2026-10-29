@@ -32,7 +32,7 @@ class URLSegmentGenerator
         // Ensure that this object has a non-conflicting URL value.
         $count = 2;
         while (!static::validate($urlCandidate, $modelClass, $modelID)) {
-            $urlCandidate = preg_replace('/-[0-9]+$/', null, $urlCandidate) . '-' . $count;
+            $urlCandidate = preg_replace('/-[0-9]+$/', '', $urlCandidate) . '-' . $count;
             $count++;
         }
 

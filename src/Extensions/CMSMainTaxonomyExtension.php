@@ -2,7 +2,7 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Extensions;
 
-use SilverStripe\Admin\LeftAndMainExtension;
+use SilverStripe\Core\Extension;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
 
 /**
@@ -12,7 +12,7 @@ use SilverStripe\Forms\GridField\GridFieldDataColumns;
  * The Tags column lists all taxonomy terms assigned to each page in the list, with extra information about the term
  * and its type (via a tooltip mechanism).
  */
-class CMSMainTaxonomyExtension extends LeftAndMainExtension
+class CMSMainTaxonomyExtension extends Extension
 {
     public function updateListView($listview)
     {

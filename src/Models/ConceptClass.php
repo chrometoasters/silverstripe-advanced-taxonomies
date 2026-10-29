@@ -2,13 +2,13 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
+use SilverStripe\Core\Validation\ValidationException;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\LiteralField;
-use SilverStripe\ORM\ArrayList;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\SS_List;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
-use SilverStripe\ORM\SS_List;
-use SilverStripe\ORM\ValidationException;
 use SilverStripe\Versioned\Versioned;
 
 class ConceptClass extends BaseObject
@@ -43,7 +43,7 @@ class ConceptClass extends BaseObject
             // Add info text about assigning terms to concept classes
             $fields->addFieldToTab(
                 'Root.Main',
-                LiteralField::create('Info', '<p class="message notice">' . $this->_t('Info') . '</p>')
+                LiteralField::create('Info', '<p class="message notice">' . $this->translate('Info') . '</p>')
             );
 
             $this->i18nRestoreWarningConfig();
@@ -65,15 +65,15 @@ class ConceptClass extends BaseObject
         if ($this->exists()) {
             // Get all terms where this concept class is assigned as primary
             $termsWherePrimary = TaxonomyTerm::get()->filter(['PrimaryConceptClassID' => $this->ID]);
-            $termIDs[]         = $termsWherePrimary->column('ID');
+            $termIDs[]         = $termsWherePrimary->columnUnique('ID');
 
             // Get all terms where this concept class is assigned as primary to their type
-            $typeIDsWherePrimary = (clone $termsWherePrimary)->filter(['ParentID' => 0])->column('ID');
+            $typeIDsWherePrimary = (clone $termsWherePrimary)->filter(['ParentID' => 0])->columnUnique('ID');
             if (count($typeIDsWherePrimary)) {
                 $termsWherePrimaryForType = TaxonomyTerm::get()
                     ->filter(['ParentID:not' => 0, 'PrimaryConceptClassID' => 0, 'TypeID' => $typeIDsWherePrimary]);
 
-                $termIDs[] = $termsWherePrimaryForType->column('ID');
+                $termIDs[] = $termsWherePrimaryForType->columnUnique('ID');
             }
         }
 
@@ -89,7 +89,7 @@ class ConceptClass extends BaseObject
     private function getTermIDsWhereOther(): array
     {
         if ($this->exists()) {
-            return TaxonomyTerm::get()->filter(['OtherConceptClasses.ID' => $this->ID])->column('ID');
+            return TaxonomyTerm::get()->filter(['OtherConceptClasses.ID' => $this->ID])->columnUnique('ID');
         }
 
         return [];
@@ -184,8 +184,7 @@ class ConceptClass extends BaseObject
 
         foreach ($this->getDefaultConceptClasses() as $name) {
             if ($name) {
-                $existingRecord = self::get()
-                    ->filter('Name', $name)
+                $existingRecord = self::get()->filter(['Name' => $name])
                     ->first();
 
                 if (!$existingRecord) {

@@ -11,7 +11,7 @@
         <td><% with $AllConceptClasses %>
             <% if $Primary %>Primary: {$Primary.Name}<% end_if %>
             <% if $Other %><% if $Primary %><br><% end_if %>
-                Other: <% loop $Other %>{$Name}<% if not $Last %>, <% end_if %><% end_loop %>
+                Other: <% loop $Other %>{$Name}<% if not $IsLast %>, <% end_if %><% end_loop %>
             <% end_if %>
         <% end_with %></td>
     </tr>

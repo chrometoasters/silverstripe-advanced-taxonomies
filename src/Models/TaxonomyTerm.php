@@ -3,8 +3,11 @@
 namespace Chrometoaster\AdvancedTaxonomies\Models;
 
 use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldAddTagsAutocompleter;
+use Chrometoaster\AdvancedTaxonomies\Forms\GridFieldConfig_TagsRelationEditor;
 use Chrometoaster\AdvancedTaxonomies\Generators\PluralGenerator;
 use Chrometoaster\AdvancedTaxonomies\ModelAdmins\TaxonomyModelAdmin;
+use Generator;
+use ReflectionException;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Forms\CheckboxField;
@@ -22,7 +25,10 @@ use SilverStripe\Forms\GridField\GridFieldPaginator;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\OptionsetField;
 use SilverStripe\Forms\TextField;
-use SilverStripe\ORM\ArrayList;
+use SilverStripe\Model\ArrayData;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\SS_List;
+use SilverStripe\Model\ModelData;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectInterface;
@@ -33,10 +39,7 @@ use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\ORM\FieldType\DBText;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\ORM\Queries\SQLSelect;
-use SilverStripe\ORM\SS_List;
 use SilverStripe\Versioned\GridFieldArchiveAction;
-use SilverStripe\View\ArrayData;
-use SilverStripe\View\ViewableData;
 use Symbiote\GridFieldExtensions\GridFieldEditableColumns;
 use Symbiote\GridFieldExtensions\GridFieldOrderableRows;
 
@@ -227,7 +230,7 @@ class TaxonomyTerm extends BaseTerm
 
         if ($this->ParentID) {
             $fields->addFieldsToTab('Root.Main', [
-                $customTitleField = TextField::create('TitleCustom', 'Display name custom')->setDescription($this->_t('TitleCustom'))
+                $customTitleField = TextField::create('TitleCustom', 'Display name custom')->setDescription($this->translate('TitleCustom'))
             ], 'Description');
             $customTitleField->displayIf('DisplayNameSourceFieldConf')->isEqualTo(self::CUSTOM);
         }
@@ -246,14 +249,13 @@ class TaxonomyTerm extends BaseTerm
                 )
             );
 
-            $publicTypeField->setDescription($this->_t('InternalOnly'));
+            $publicTypeField->setDescription($this->translate('InternalOnly'));
         }
 
         // Tweak SingleSelect
         if ($this->ParentID) {
             $fields->removeByName('SingleSelect');
         } else {
-
             // SingleSelect field definition, may be transformed to read only below
             $singleSelectField = OptionsetField::create(
                 'SingleSelect',
@@ -277,7 +279,7 @@ class TaxonomyTerm extends BaseTerm
                 $singleSelectField = $singleSelectField->performReadonlyTransformation();
 
                 // first tagged class to be used in the description text
-                $taggedClass = mb_strtolower(singleton($typeTaggedClasses[0])->singular_name());
+                $taggedClass = mb_strtolower((string) singleton($typeTaggedClasses[0])->singular_name());
             }
 
             // replace the scaffolded field with the new one
@@ -285,7 +287,7 @@ class TaxonomyTerm extends BaseTerm
 
             // provide description for different combination of states from the lang file
             $singleSelectDescriptionKey = 'SingleSelect' . ($checked ? '_Checked' : '') . ($readonly ? '_Readonly' : '');
-            $singleSelectField->setDescription($this->_t($singleSelectDescriptionKey, $taggedClass));
+            $singleSelectField->setDescription($this->translate($singleSelectDescriptionKey, $taggedClass));
         }
 
 
@@ -299,7 +301,7 @@ class TaxonomyTerm extends BaseTerm
 
             $childrenGrid->getConfig()->removeComponent($addExistingAutocompleter);
             $childrenGrid->getConfig()->removeComponent($deleteAction);
-            $childrenGrid->getConfig()->addComponent(new GridFieldDeleteAction(false));
+            $childrenGrid->getConfig()->addComponent(GridFieldDeleteAction::create(false));
 
             // Vary the button name of a GridFieldAddNewButton in Children GridField from the default
             $childrenGrid->getConfig()->getComponentByType(GridFieldAddNewButton::class)
@@ -325,7 +327,7 @@ class TaxonomyTerm extends BaseTerm
         $primaryConceptClass = $fields->dataFieldByName('PrimaryConceptClassID');
         $primaryConceptClass->setEmptyString('--- select one ---');
         if ($this->ParentID) {
-            $primaryConceptClass->setDescription($this->_t('PrimaryConceptClass'));
+            $primaryConceptClass->setDescription($this->translate('PrimaryConceptClass'));
         }
 
         // Change the OtherConceptClasses tab to ConceptClasses and move the PrimaryConceptClass dropdown to this tab
@@ -395,7 +397,7 @@ class TaxonomyTerm extends BaseTerm
             $termsTab         = $fields->findOrMakeTab('Root.Terms')->setTitle('Descendants list');
             $termsDescription = LiteralField::create(
                 'TermsDescription',
-                '<p class="message good">' . $this->_t('Terms') . '</p>'
+                '<p class="message good">' . $this->translate('Terms') . '</p>'
             );
             $termsTab->insertBefore('Terms', $termsDescription);
             $termsTab->insertBefore('Terms', $lineBreak);
@@ -407,16 +409,9 @@ class TaxonomyTerm extends BaseTerm
         if ($gridRequiredTypes) {
             // Remove RequiredTypes' GridField
             $gridRequiredTypes->setTitle('');
-            $config = $gridRequiredTypes->getConfig();
-            $config
-                ->removeComponentsByType(GridFieldAddNewButton::class)
-                ->removeComponentsByType(GridFieldArchiveAction::class)
-                ->removeComponentsByType(GridFieldEditButton::class)
-                ->removeComponentsByType(GridFieldAddExistingAutocompleter::class)
-                ->addComponent(
-                    $addExisting = new GridFieldAddTagsAutocompleter('buttons-before-left')
-                );
 
+            $config = GridFieldConfig_TagsRelationEditor::create();
+            $addExisting = $config->getComponentByType(GridFieldAddTagsAutocompleter::class);
             $addExisting->setPlaceholderText('Add taxonomies by name')->setButtonText('Add taxonomy');
 
             // Not to confuse user, we are not going to show the RequiredTypes in this GridField, which is to show all
@@ -428,8 +423,10 @@ class TaxonomyTerm extends BaseTerm
             }
 
             // Only make root terms available as RequiredTypes, disable to link the type itself as the RequiredTypes
-            $searchList = self::get()->filter('ParentID', 0)->exclude('ID', $this->ID);
+            $searchList = self::get()->filter(['ParentID' => 0])->exclude(['ID' => $this->ID]);
             $addExisting->setSearchList($searchList);
+
+            $gridRequiredTypes->setConfig($config);
         }
 
         // Change the Tab RequiredTypes' label
@@ -465,7 +462,7 @@ class TaxonomyTerm extends BaseTerm
         if ($gridRequiredTypes) {
             $requiredTypesPromptField = LiteralField::create(
                 'RequiredTypesExplanation',
-                '<p class="message good">' . $this->_t('RequiredTypes') . '</p>'
+                '<p class="message good">' . $this->translate('RequiredTypes') . '</p>'
             );
             $requiredTypesTab->insertBefore('RequiredTypes', $requiredTypesPromptField);
             $requiredTypesTab->insertBefore('RequiredTypes', $lineBreak);
@@ -519,45 +516,31 @@ class TaxonomyTerm extends BaseTerm
             $associatedGridField = $fields->dataFieldByName('AssociatedTerms');
 
             if (AssociativeRelationType::get()->count()) {
-                $associatedGridConfig = $associatedGridField->getConfig();
-                $associatedGridConfig->removeComponentsByType([
-                    GridFieldAddNewButton::class,
-                    GridFieldDataColumns::class,
-                    GridFieldEditButton::class,
-                    GridFieldArchiveAction::class,
-                    GridFieldAddExistingAutocompleter::class,
-                ]);
-                $associatedGridConfig->addComponents([
-                    new GridFieldAddExistingAutocompleter('buttons-before-left'),
-                    GridFieldOrderableRows::create('Sort'),
-                ]);
+                $associatedGridConfig = GridFieldConfig_TagsRelationEditor::create();
 
                 // Make the GridField editable inline per row by GridFieldEditableColumns
-                $associatedGridConfig->addComponent($editableColumns = new GridFieldEditableColumns());
+                $associatedGridConfig->addComponent($editableColumns = GridFieldEditableColumns::create());
                 $editableColumns->setDisplayFields(
                     [
                         'ComponentAssociativeRelationTypeID' => [
-                            'callback' => function ($record, $col, $grid) {
-                                return DropdownField::create(
-                                    $col,
-                                    'Associative type',
-                                    AssociativeRelationType::get()->map(),
-                                )->setEmptyString('--- select an associative type ---');
-                            },
+                            'callback' => fn ($record, $col, $grid) => DropdownField::create(
+                                $col,
+                                'Associative type',
+                                AssociativeRelationType::get()->map(),
+                            )->setEmptyString('--- select an associative type ---'),
                             'title' => 'Associative type',
                         ],
                         'ComponentAssociativeIsInverseRelation' => [
-                            'callback' => function ($record, $col, $grid) {
-                                return CheckboxField::create(
-                                    $col,
-                                    'Inverse relation (right to left)?',
-                                );
-                            },
+                            'callback' => fn ($record, $col, $grid) => CheckboxField::create(
+                                $col,
+                                'Inverse relation (right to left)?',
+                            ),
                             'title' => 'Inverse relation (right to left)?',
                         ],
                         'getNameAsTag' => 'Associated taxonomy term',
                     ]
                 );
+                $associatedGridField->setConfig($associatedGridConfig);
             } else {
                 $fields->removeFieldFromTab('Root.AssociatedTerms', 'AssociatedTerms');
 
@@ -575,7 +558,7 @@ class TaxonomyTerm extends BaseTerm
         // Reorder
         if (!$this->ParentID && isset($termsTab)) {
             // reorder Tabs so Terms tab appears at the last position
-            $fields->removeFieldFromTab('Root', ['Terms']);
+            $fields->removeFieldFromTab('Root', 'Terms');
             $fields->fieldByName('Root')->push($termsTab);
         }
 
@@ -680,7 +663,7 @@ class TaxonomyTerm extends BaseTerm
 
             if (ClassInfo::hasTable($tableName)) {
                 // table exists
-                $termIDs            = $typeTerms->column('ID');
+                $termIDs            = $typeTerms->columnUnique('ID');
                 $termIDPlaceholders = DB::placeholders($termIDs);
 
                 $typeTaggedClasses = SQLSelect::create(
@@ -779,14 +762,13 @@ class TaxonomyTerm extends BaseTerm
      * 2. "myName" if it is a root term
      *
      * @param string $separator
+     * @param callable|null $termsDecorator
      * @return string
      */
-    public function getTermHierarchy(string $separator = ' ▸ ', callable $termsDecorator = null)
+    public function getTermHierarchy(string $separator = ' ▸ ', ?callable $termsDecorator = null)
     {
         // default decorator if none is provided
-        $plaintextDecorator = function (TaxonomyTerm $term) {
-            return sprintf('%s', $term->Name);
-        };
+        $plaintextDecorator = (fn (TaxonomyTerm $term) => sprintf('%s', $term->Name));
 
         $termsDecorator = $termsDecorator ?: $plaintextDecorator;
 
@@ -928,16 +910,16 @@ class TaxonomyTerm extends BaseTerm
         // get a unique list of required type IDs
         $termRequiredTypeIDs = array_unique(
             array_merge(
-                $this->Type()->RequiredTypes()->column('ID'),
-                $this->RequiredTypes()->column('ID')
+                $this->Type()->RequiredTypes()->columnUnique('ID'),
+                $this->RequiredTypes()->columnUnique('ID')
             )
         );
 
         if (count($termRequiredTypeIDs)) {
-            return self::get()->filterAny('ID', $termRequiredTypeIDs);
+            return self::get()->filterAny(['ID' => $termRequiredTypeIDs]);
         }
 
-        return self::get()->filter('ID', -9999); // arbitrary ID of a non-existing term to return an empty DataList
+        return self::get()->filter(['ID' => -9999]); // arbitrary ID of a non-existing term to return an empty DataList
     }
 
 
@@ -954,7 +936,7 @@ class TaxonomyTerm extends BaseTerm
      */
     public function getAllRequiredTypesNames(string $delimiter = '<br />'): DBHTMLText
     {
-        $names = $this->getAllRequiredTypes()->column('Name');
+        $names = $this->getAllRequiredTypes()->columnUnique('Name');
 
         return DBField::create_field(DBHTMLText::class, implode($delimiter, $names));
     }
@@ -965,7 +947,7 @@ class TaxonomyTerm extends BaseTerm
      *
      * The list is grouped by the alt term class, such as (e.g. EquivalentAltTerm, LanguageAltTerm etc.)
      *
-     * @throws \ReflectionException
+     * @throws ReflectionException
      * @return array
      */
     public function getAllAlternativeTermsGroupedByType(): array
@@ -973,7 +955,6 @@ class TaxonomyTerm extends BaseTerm
         $groups = [];
 
         foreach (ClassInfo::subclassesFor(AlternativeTerm::class, false) as $altTermClass) {
-
             // find the first has_one field as each alternative term needs a reverse relation to this class
             foreach (Config::inst()->get($altTermClass, 'has_one') as $field => $taxonomyTermClass) {
                 if (is_a($taxonomyTermClass, self::class, true)) {
@@ -982,7 +963,7 @@ class TaxonomyTerm extends BaseTerm
                     }
 
                     $group = [];
-                    foreach (DataObject::get($altTermClass)->filter($field . 'ID', $this->ID) as $altTerm) {
+                    foreach (DataObject::get($altTermClass)->filter([$field . 'ID' => $this->ID]) as $altTerm) {
                         if ($altTerm && $altTerm->exists()) {
                             $group[] = $altTerm;
                         }
@@ -1003,6 +984,20 @@ class TaxonomyTerm extends BaseTerm
 
 
     /**
+     * Get the display name of the most relevant Language Alternative term (either by the locale or the primary flag)
+     *
+     * Note: This is a shorthand for LanguageAltTermField method.
+     *
+     * @param string|null $locale
+     * @return mixed|DataObject|DBField|null
+     */
+    public function LanguageAltTerm(?string $locale = null)
+    {
+        return $this->LanguageAltTermField('', $locale);
+    }
+
+
+    /**
      * Get a field from the most relevant Language Alternative term (either by the locale or the primary flag)
      *
      * When no field name is provided, the term uses its preferred/configured display name (singular/plural/custom).
@@ -1014,7 +1009,7 @@ class TaxonomyTerm extends BaseTerm
      * @param string|null $locale
      * @return mixed|DataObject|DBField|null
      */
-    public function LanguageAltTermField(string $fieldName = null, string $locale = null)
+    public function LanguageAltTermField(?string $fieldName = null, ?string $locale = null)
     {
         $langTerms = $this->LanguageAltTerms();
 
@@ -1034,20 +1029,6 @@ class TaxonomyTerm extends BaseTerm
         }
 
         return $term && $term->hasField($fieldName) ? $term->getField($fieldName) : null;
-    }
-
-
-    /**
-     * Get the display name of the most relevant Language Alternative term (either by the locale or the primary flag)
-     *
-     * Note: This is a shorthand for LanguageAltTermField method.
-     *
-     * @param string|null $locale
-     * @return mixed|DataObject|DBField|null
-     */
-    public function LanguageAltTerm(string $locale = null)
-    {
-        return $this->LanguageAltTermField('', $locale);
     }
 
 
@@ -1077,7 +1058,7 @@ class TaxonomyTerm extends BaseTerm
     {
         $ids = [];
 
-        foreach ($this->getAllAlternativeTermsGroupedByType() as $type => $altTerms) {
+        foreach ($this->getAllAlternativeTermsGroupedByType() as $altTerms) {
             foreach ($altTerms as $altTerm) {
                 $id       = $altTerm->ID;
                 $ids[$id] = $id; // using the ID as the key as well as the value to keep only unique values
@@ -1096,7 +1077,7 @@ class TaxonomyTerm extends BaseTerm
      * Get a list of lists of alternative terms associated to this term for a term rich-info overview
      *
      * @param string $delimiter
-     * @throws \ReflectionException
+     * @throws ReflectionException
      * @return DBHTMLText
      */
     public function getAllAlternativeTermsNames(string $delimiter = '<br />'): DBHTMLText
@@ -1168,19 +1149,19 @@ class TaxonomyTerm extends BaseTerm
      * @param SS_List|null $terms
      * @return DataList
      */
-    public static function getSingleSelectOnlyTypes(SS_List $terms = null): DataList
+    public static function getSingleSelectOnlyTypes(?SS_List $terms = null): DataList
     {
         $singleSelectTypes = self::get()->filter(['ParentID' => 0, 'SingleSelect' => true]);
 
         if ($terms) {
-            $termsTypeIDs = array_unique($terms->column('TypeID'));
+            $termsTypeIDs = $terms->columnUnique('TypeID');
             if (count($termsTypeIDs)) {
                 // a narrow down list of types based on the list of terms provided
-                return $singleSelectTypes->filterAny('ID', $termsTypeIDs);
+                return $singleSelectTypes->filterAny(['ID' => $termsTypeIDs]);
             }
 
             // filtered list with no candidates
-            return self::get()->filter('ID', -9999); // arbitrary ID of a non-existing term to return an empty DataList
+            return self::get()->filter(['ID' => -9999]); // arbitrary ID of a non-existing term to return an empty DataList
         }
 
         // all single select types non-filtered
@@ -1197,7 +1178,7 @@ class TaxonomyTerm extends BaseTerm
      * DataObjectTaxonomyTerm "through" objects, and we use this $has_many relation to work out the components of
      * $belongs_many_many as "TaggedObjects".
      *
-     * @return \Generator
+     * @return Generator
      */
     public function TaggedObjects()
     {
@@ -1248,9 +1229,9 @@ class TaxonomyTerm extends BaseTerm
      * @param DataObject $item
      * @param string $field
      * @param string $relation
-     * @return ViewableData
+     * @return ModelData
      */
-    private static function decorateTaggedDataObject(DataObject $item, string $field, string $relation): ViewableData
+    private static function decorateTaggedDataObject(DataObject $item, string $field, string $relation): ModelData
     {
         $cmsLink = '';
         if ($item->hasMethod('CMSEditLink')) {
@@ -1337,7 +1318,7 @@ class TaxonomyTerm extends BaseTerm
     /**
      * Get a list of all objects tagged with this taxonomy term
      *
-     * @throws \ReflectionException
+     * @throws ReflectionException
      * @return ArrayList
      */
     public function getTaggedDataObjects(): ArrayList
@@ -1358,14 +1339,13 @@ class TaxonomyTerm extends BaseTerm
 
                 foreach ($relationCandidates as $field => $fieldType) {
                     if ($fieldType === self::class) {
-
                         // db field to filter on — FieldNameID for has_one, or FieldName.ID for composite relations
                         $filterField = $field . ($relation === 'has_one' ? '' : '.') . 'ID';
 
-                        $items = DataObject::get($class)->filter($filterField, $this->ID);
+                        $items = DataObject::get($class)->filter([$filterField => $this->ID]);
 
                         // TODO: find out how to get the mapped class to match
-                        $items->each(function ($item) use ($list, $field, $relation, $mmtMapping) {
+                        $items->each(function ($item) use ($list, $field, $relation, $mmtMapping): void {
                             // special treatment of relations that form many_many_through mappings
                             if (array_key_exists($item->ClassName, $mmtMapping)) {
                                 $mmtMaps = $mmtMapping[$item->ClassName]; //[sprintf('%s.%s', $item->class, $field)];

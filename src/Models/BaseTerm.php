@@ -70,11 +70,11 @@ class BaseTerm extends BaseObject
         $fields->removeByName(['TitleCustom']); // field is used from TaxonomyTerm level only
 
         // Add description to fields
-        $fields->datafieldByName('Title')->setDescription($this->_t('Title'));
-        $fields->datafieldByName('TitlePlural')->setDescription($this->_t('TitlePlural'));
-        $fields->datafieldByName('Description')->setDescription($this->_t('Description'));
-        $fields->datafieldByName('AuthorDefinition')->setDescription($this->_t('AuthorDefinition'));
-        $fields->datafieldByName('PublicDefinition')->setDescription($this->_t('PublicDefinition'));
+        $fields->datafieldByName('Title')->setDescription($this->translate('Title'));
+        $fields->datafieldByName('TitlePlural')->setDescription($this->translate('TitlePlural'));
+        $fields->datafieldByName('Description')->setDescription($this->translate('Description'));
+        $fields->datafieldByName('AuthorDefinition')->setDescription($this->translate('AuthorDefinition'));
+        $fields->datafieldByName('PublicDefinition')->setDescription($this->translate('PublicDefinition'));
 
         $this->i18nRestoreWarningConfig();
 

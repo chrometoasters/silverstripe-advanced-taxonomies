@@ -6,10 +6,10 @@ use Chrometoaster\AdvancedTaxonomies\Forms\FieldsProvider;
 use Chrometoaster\AdvancedTaxonomies\Models\DataObjectTaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
+use SilverStripe\Core\Extension;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\LiteralField;
-use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBHTMLText;
@@ -21,7 +21,7 @@ use SilverStripe\ORM\FieldType\DBHTMLText;
  * from DataObject. It adds a many-many relation (labelled 'Tags') between the model and the TaxonomyTerm.
  * It provides a generic CMS user interface for adding tags to the models.
  */
-class DataObjectTaxonomiesDataExtension extends DataExtension
+class DataObjectTaxonomiesDataExtension extends Extension
 {
     private static $many_many = [
         'Tags' => [
@@ -56,9 +56,9 @@ class DataObjectTaxonomiesDataExtension extends DataExtension
         // - excluding single select types which already have a tag in the list
         // - this works in real time as adding a tag adds it to the list, even when the relation is unsaved
         $searchList          = DataList::create(TaxonomyTerm::class);
-        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags())->column('ID');
+        $singleSelectTypeIDs = TaxonomyTerm::getSingleSelectOnlyTypes($this->getOwner()->Tags())->columnUnique('ID');
         if (!empty($singleSelectTypeIDs)) {
-            $searchList = $searchList->exclude('TypeID', $singleSelectTypeIDs);
+            $searchList = $searchList->exclude(['TypeID' => $singleSelectTypeIDs]);
         }
 
         $gridFieldConfig = FieldsProvider::getTaggingGridFieldConfig(

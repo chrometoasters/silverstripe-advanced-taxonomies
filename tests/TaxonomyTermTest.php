@@ -2,12 +2,12 @@
 
 namespace Chrometoaster\AdvancedTaxonomies\Tests;
 
+use SilverStripe\Core\Validation\ValidationException;
 use Chrometoaster\AdvancedTaxonomies\Models\ConceptClass;
 use Chrometoaster\AdvancedTaxonomies\Models\TaxonomyTerm;
 use Chrometoaster\AdvancedTaxonomies\Tests\Models\OwnerObject;
 use Chrometoaster\AdvancedTaxonomies\Validators\TaxonomyRulesValidator;
 use SilverStripe\Dev\SapphireTest;
-use SilverStripe\ORM\ValidationException;
 use SilverStripe\Versioned\Versioned;
 
 class TaxonomyTermTest extends SapphireTest
@@ -486,7 +486,7 @@ class TaxonomyTermTest extends SapphireTest
         $rootTerm1FromLive = TaxonomyTerm::get()->byID($rootTerm1->ID);
         $this->assertNull($rootTerm1FromLive, 'rootTerm1 doesn\'t exist on Live table');
 
-        $object1->doPublish();
+        $object1->publishRecursive();
         $object1FromLive = OwnerObject::get()->byID($object1->ID);
         $this->assertNotNull($object1FromLive, 'object1 exists on Live table after being published');
         $rootTerm1FromLive = TaxonomyTerm::get()->byID($rootTerm1->ID);
