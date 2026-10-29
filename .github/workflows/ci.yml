@@ -64,9 +64,9 @@ jobs:
   # temporary databases. Any failure or error fails the job.
   #
   # CMS 6.2 keeps its PHP 8.3 pair, pinned to ~6.2.0 so the leg stays on 6.2
-  # once 6.3 is stable. CMS 6.3 has only release candidates on Packagist, so
-  # its project allows RC stability; prefer-stable takes 6.3.0 by itself when
-  # it is tagged.
+  # now that 6.3 is stable. The CMS 6.3 pairs install ~6.3.0 at stable
+  # stability (6.3.0 was tagged on 28 October 2026; until then the matrix
+  # allowed its release candidates).
   phpunit:
     name: phpunit (CMS ${{ matrix.cms }}, PHP ${{ matrix.php }})
     runs-on: ubuntu-24.04
@@ -80,12 +80,12 @@ jobs:
             stability: stable
             php: '8.3'
           - cms: '6.3'
-            recipe: '~6.3.0@rc'
-            stability: RC
+            recipe: '~6.3.0'
+            stability: stable
             php: '8.4'
           - cms: '6.3'
-            recipe: '~6.3.0@rc'
-            stability: RC
+            recipe: '~6.3.0'
+            stability: stable
             php: '8.5'
     services:
       mysql:
