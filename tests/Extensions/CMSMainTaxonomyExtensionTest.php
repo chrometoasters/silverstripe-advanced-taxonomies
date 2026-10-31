@@ -4,6 +4,7 @@ namespace Chrometoaster\AdvancedTaxonomies\Tests\Extensions;
 
 use Chrometoaster\AdvancedTaxonomies\Extensions\CMSMainTaxonomyExtension;
 use SilverStripe\CMS\Controllers\CMSMain;
+use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Dev\SapphireTest;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\Form;
@@ -81,6 +82,8 @@ class CMSMainTaxonomyExtensionTest extends SapphireTest
     {
         $config = GridFieldConfig_Base::create();
         $grid   = GridField::create($gridName, ucfirst($gridName) . 's', ArrayList::create(), $config);
+        // The data-columns component reads the model's summary fields, as CMSMain's grid over SiteTree does
+        $grid->setModelClass(SiteTree::class);
 
         return Form::create(CMSMain::create(), 'ListViewForm', FieldList::create($grid), FieldList::create());
     }
